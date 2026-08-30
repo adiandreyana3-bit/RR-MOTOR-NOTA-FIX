@@ -10,8 +10,8 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.print.PrintAttributes;
 import android.print.PrintManager;
+import android.text.InputType;
 import android.view.Gravity;
-import android.view.View;
 import android.widget.*;
 
 import java.text.NumberFormat;
@@ -58,9 +58,7 @@ public class MainActivity extends Activity {
         utama.addView(namaInput);
 
         waInput = buatInput("Nomor WhatsApp *");
-        waInput.setInputType(
-                android.text.InputType.TYPE_CLASS_PHONE
-        );
+        waInput.setInputType(InputType.TYPE_CLASS_PHONE);
         utama.addView(waInput);
 
         tanggalInput = buatInput("Tanggal nota *");
@@ -72,9 +70,7 @@ public class MainActivity extends Activity {
         utama.addView(motorInput);
 
         dpInput = buatInput("DP / Uang muka (opsional)");
-        dpInput.setInputType(
-                android.text.InputType.TYPE_CLASS_NUMBER
-        );
+        dpInput.setInputType(InputType.TYPE_CLASS_NUMBER);
         utama.addView(dpInput);
 
         TextView judulItem = new TextView(this);
@@ -145,6 +141,7 @@ public class MainActivity extends Activity {
     private EditText buatInput(String hint) {
 
         EditText input = new EditText(this);
+
         input.setHint(hint);
         input.setTextSize(17);
         input.setSingleLine(true);
@@ -157,6 +154,7 @@ public class MainActivity extends Activity {
                 );
 
         params.setMargins(0, 5, 0, 5);
+
         input.setLayoutParams(params);
 
         return input;
@@ -192,23 +190,35 @@ public class MainActivity extends Activity {
 
     private void tambahBarisItem() {
 
-        LinearLayout baris = new LinearLayout(this);
-        baris.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout baris =
+                new LinearLayout(this);
+
+        baris.setOrientation(
+                LinearLayout.VERTICAL
+        );
+
         baris.setPadding(0, 10, 0, 10);
 
-        EditText nama = buatInput("Nama barang / jasa");
-        EditText jumlah = buatInput("Jumlah");
-        EditText harga = buatInput("Harga satuan");
+        EditText nama =
+                buatInput("Nama barang / jasa");
+
+        EditText jumlah =
+                buatInput("Jumlah");
+
+        EditText harga =
+                buatInput("Harga satuan");
 
         jumlah.setInputType(
-                android.text.InputType.TYPE_CLASS_NUMBER
+                InputType.TYPE_CLASS_NUMBER
         );
 
         harga.setInputType(
-                android.text.InputType.TYPE_CLASS_NUMBER
+                InputType.TYPE_CLASS_NUMBER
         );
 
-        Button hapus = new Button(this);
+        Button hapus =
+                new Button(this);
+
         hapus.setText("🗑️ Hapus item");
 
         baris.addView(nama);
@@ -224,19 +234,35 @@ public class MainActivity extends Activity {
 
         jumlah.setOnFocusChangeListener(
                 (v, hasFocus) -> {
-                    if (!hasFocus) hitungTotal();
+
+                    if (!hasFocus) {
+                        hitungTotal();
+                    }
                 }
         );
 
         harga.setOnFocusChangeListener(
                 (v, hasFocus) -> {
-                    if (!hasFocus) hitungTotal();
+
+                    if (!hasFocus) {
+                        hitungTotal();
+                    }
+                }
+        );
+
+        dpInput.setOnFocusChangeListener(
+                (v, hasFocus) -> {
+
+                    if (!hasFocus) {
+                        hitungTotal();
+                    }
                 }
         );
 
         hapus.setOnClickListener(v -> {
 
-            int posisi = namaBarang.indexOf(nama);
+            int posisi =
+                    namaBarang.indexOf(nama);
 
             if (namaBarang.size() > 1) {
 
@@ -270,7 +296,9 @@ public class MainActivity extends Activity {
                             .replace(",", "")
                             .trim();
 
-            if (teks.isEmpty()) return 0;
+            if (teks.isEmpty()) {
+                return 0;
+            }
 
             return Long.parseLong(teks);
 
@@ -284,7 +312,9 @@ public class MainActivity extends Activity {
 
         long total = 0;
 
-        for (int i = 0; i < namaBarang.size(); i++) {
+        for (int i = 0;
+             i < namaBarang.size();
+             i++) {
 
             long jumlah =
                     angka(jumlahBarang.get(i));
@@ -299,14 +329,18 @@ public class MainActivity extends Activity {
 
         long sisa = total - dp;
 
-        if (sisa < 0) sisa = 0;
+        if (sisa < 0) {
+            sisa = 0;
+        }
 
         totalText.setText(
-                "TOTAL : " + formatRupiah(total)
+                "TOTAL : " +
+                formatRupiah(total)
         );
 
         sisaText.setText(
-                "SISA : " + formatRupiah(sisa)
+                "SISA : " +
+                formatRupiah(sisa)
         );
 
         if (sisa == 0) {
@@ -338,13 +372,19 @@ public class MainActivity extends Activity {
     private void simpanNota() {
 
         String nama =
-                namaInput.getText().toString().trim();
+                namaInput.getText()
+                        .toString()
+                        .trim();
 
         String wa =
-                waInput.getText().toString().trim();
+                waInput.getText()
+                        .toString()
+                        .trim();
 
         String tanggal =
-                tanggalInput.getText().toString().trim();
+                tanggalInput.getText()
+                        .toString()
+                        .trim();
 
         if (nama.isEmpty()) {
 
@@ -353,6 +393,7 @@ public class MainActivity extends Activity {
             );
 
             namaInput.requestFocus();
+
             return;
         }
 
@@ -363,6 +404,7 @@ public class MainActivity extends Activity {
             );
 
             waInput.requestFocus();
+
             return;
         }
 
@@ -375,12 +417,14 @@ public class MainActivity extends Activity {
             return;
         }
 
-        hitungTotal();
+        long total = hitungTotal();
 
         StringBuilder dataItem =
                 new StringBuilder();
 
-        for (int i = 0; i < namaBarang.size(); i++) {
+        for (int i = 0;
+             i < namaBarang.size();
+             i++) {
 
             String barang =
                     namaBarang.get(i)
@@ -403,10 +447,10 @@ public class MainActivity extends Activity {
                 dataItem.append(
                         encode(barang)
                 )
-                        .append("~")
-                        .append(jumlah)
-                        .append("~")
-                        .append(harga);
+                .append("~")
+                .append(jumlah)
+                .append("~")
+                .append(harga);
             }
         }
 
@@ -415,16 +459,16 @@ public class MainActivity extends Activity {
 
         String data =
                 waktu + "|" +
-                        encode(nama) + "|" +
-                        encode(wa) + "|" +
-                        encode(tanggal) + "|" +
-                        encode(
-                                motorInput
-                                        .getText()
-                                        .toString()
-                        ) + "|" +
-                        angka(dpInput) + "|" +
-                        dataItem;
+                encode(nama) + "|" +
+                encode(wa) + "|" +
+                encode(tanggal) + "|" +
+                encode(
+                        motorInput
+                                .getText()
+                                .toString()
+                ) + "|" +
+                angka(dpInput) + "|" +
+                dataItem;
 
         SharedPreferences pref =
                 getSharedPreferences(
@@ -523,8 +567,9 @@ public class MainActivity extends Activity {
                                 7
                         );
 
-                if (bagian.length < 7)
+                if (bagian.length < 7) {
                     continue;
+                }
 
                 String nama =
                         decode(bagian[1]);
@@ -562,30 +607,27 @@ public class MainActivity extends Activity {
                     }
                 }
 
-                tampilan
-                        .append("👤 ")
+                tampilan.append("👤 ")
                         .append(nama)
                         .append("\n");
 
-                tampilan
-                        .append("📅 ")
+                tampilan.append("📅 ")
                         .append(tanggal)
                         .append("\n");
 
-                tampilan
-                        .append("📱 ")
+                tampilan.append("📱 ")
                         .append(wa)
                         .append("\n");
 
-                tampilan
-                        .append("💰 ")
+                tampilan.append("💰 ")
                         .append(
                                 formatRupiah(total)
                         )
                         .append("\n");
 
-                tampilan
-                        .append("--------------------\n");
+                tampilan.append(
+                        "--------------------\n"
+                );
 
             } catch (Exception ignored) {
             }
@@ -602,6 +644,7 @@ public class MainActivity extends Activity {
         );
 
         teks.setTextSize(16);
+
         teks.setPadding(
                 25,
                 20,
@@ -619,158 +662,6 @@ public class MainActivity extends Activity {
                         null
                 )
                 .show();
-    }
-
-    private String buatTeksNota() {
-
-        String nama =
-                namaInput.getText()
-                        .toString()
-                        .trim();
-
-        String tanggal =
-                tanggalInput.getText()
-                        .toString()
-                        .trim();
-
-        String motor =
-                motorInput.getText()
-                        .toString()
-                        .trim();
-
-        long total = hitungTotal();
-        long dp = angka(dpInput);
-
-        long sisa = total - dp;
-
-        if (sisa < 0) sisa = 0;
-
-        StringBuilder nota =
-                new StringBuilder();
-
-        nota.append("RR MOTOR\n");
-        nota.append("==============================\n");
-        nota.append("NOTA SERVIS\n");
-        nota.append("==============================\n");
-        nota.append("Nama   : ")
-                .append(nama)
-                .append("\n");
-
-        nota.append("Tanggal: ")
-                .append(tanggal)
-                .append("\n");
-
-        if (!motor.isEmpty()) {
-
-            nota.append("Motor  : ")
-                    .append(motor)
-                    .append("\n");
-        }
-
-        nota.append("------------------------------\n");
-
-        for (int i = 0;
-             i < namaBarang.size();
-             i++) {
-
-            String barang =
-                    namaBarang.get(i)
-                            .getText()
-                            .toString()
-                            .trim();
-
-            long jumlah =
-                    angka(jumlahBarang.get(i));
-
-            long harga =
-                    angka(hargaBarang.get(i));
-
-            if (!barang.isEmpty()) {
-
-                nota.append(barang)
-                        .append("\n");
-
-                nota.append(jumlah)
-                        .append(" x ")
-                        .append(formatRupiah(harga))
-                        .append(" = ")
-                        .append(
-                                formatRupiah(
-                                        jumlah * harga
-                                )
-                        )
-                        .append("\n");
-            }
-        }
-
-        nota.append("------------------------------\n");
-
-        nota.append("TOTAL : ")
-                .append(formatRupiah(total))
-                .append("\n");
-
-        nota.append("DP    : ")
-                .append(formatRupiah(dp))
-                .append("\n");
-
-        nota.append("SISA  : ")
-                .append(formatRupiah(sisa))
-                .append("\n");
-
-        nota.append("\n");
-
-        if (sisa == 0) {
-
-            nota.append("STATUS: LUNAS\n");
-
-        } else {
-
-            nota.append("STATUS: BELUM LUNAS\n");
-        }
-
-        nota.append("\n");
-        nota.append("Terima kasih.\n");
-        nota.append("RR MOTOR");
-
-        return nota.toString();
-    }
-
-    private void cetakNota() {
-
-        String isiNota =
-                buatTeksNota();
-
-        PrintManager printManager =
-                (PrintManager) getSystemService(
-                        PRINT_SERVICE
-                );
-
-        if (printManager == null) {
-
-            Toast.makeText(
-                    this,
-                    "Layanan cetak tidak tersedia",
-                    Toast.LENGTH_LONG
-            ).show();
-
-            return;
-        }
-
-        PrintAttributes attributes =
-                new PrintAttributes.Builder()
-                        .setMediaSize(
-                                PrintAttributes.MediaSize.ISO_A4
-                        )
-                        .setMinMargins(
-                                PrintAttributes.Margins.NO_MARGINS
-                        )
-                        .build();
-
-        printManager.print(
-                "Nota RR MOTOR",
-                new NotaPrintAdapter(isiNota),
-                attributes
-        );
     }
 
     private void kirimWhatsApp() {
@@ -797,23 +688,31 @@ public class MainActivity extends Activity {
             return;
         }
 
-        long total = hitungTotal();
-        long dp = angka(dpInput);
+        long total =
+                hitungTotal();
 
-        long sisa = total - dp;
+        long dp =
+                angka(dpInput);
 
-        if (sisa < 0) sisa = 0;
+        long sisa =
+                total - dp;
+
+        if (sisa < 0) {
+            sisa = 0;
+        }
 
         StringBuilder pesan =
                 new StringBuilder();
 
-        pesan.append("🏍️ *RR MOTOR*\n\n");
+        pesan.append(
+                "🏍️ *RR MOTOR*\n\n"
+        );
 
         pesan.append(
                 "Halo Bapak/Ibu *"
         )
-                .append(nama)
-                .append("* 👋\n\n");
+        .append(nama)
+        .append("* 👋\n\n");
 
         pesan.append(
                 "Berikut informasi nota servis Anda:\n\n"
@@ -859,23 +758,23 @@ public class MainActivity extends Activity {
             }
         }
 
-        pesan.append("*TOTAL : ")
-                .append(
-                        formatRupiah(total)
-                )
-                .append("*\n");
+        pesan.append(
+                "*TOTAL : "
+        )
+        .append(formatRupiah(total))
+        .append("*\n");
 
-        pesan.append("DP : ")
-                .append(
-                        formatRupiah(dp)
-                )
-                .append("\n");
+        pesan.append(
+                "DP : "
+        )
+        .append(formatRupiah(dp))
+        .append("\n");
 
-        pesan.append("SISA : ")
-                .append(
-                        formatRupiah(sisa)
-                )
-                .append("\n\n");
+        pesan.append(
+                "SISA : "
+        )
+        .append(formatRupiah(sisa))
+        .append("\n\n");
 
         if (sisa == 0) {
 
@@ -891,7 +790,10 @@ public class MainActivity extends Activity {
         }
 
         pesan.append(
-                "Terima kasih sudah mempercayakan kendaraan Anda kepada *RR MOTOR*. 🙏"
+                "Terima kasih sudah mempercayakan "
+        )
+        .append(
+                "kendaraan Anda kepada *RR MOTOR*. 🙏"
         );
 
         String nomor =
@@ -930,6 +832,274 @@ public class MainActivity extends Activity {
             Toast.makeText(
                     this,
                     "WhatsApp tidak dapat dibuka",
+                    Toast.LENGTH_LONG
+            ).show();
+        }
+    }
+
+    private String buatTeksNota(
+            String nama,
+            String wa,
+            String tanggal,
+            String motor,
+            long total,
+            long dp,
+            long sisa) {
+
+        StringBuilder nota =
+                new StringBuilder();
+
+        nota.append(
+                "================================\n"
+        );
+
+        nota.append(
+                "          RR MOTOR\n"
+        );
+
+        nota.append(
+                "       NOTA SERVIS\n"
+        );
+
+        nota.append(
+                "================================\n\n"
+        );
+
+        nota.append("Nama    : ")
+                .append(nama)
+                .append("\n");
+
+        nota.append("WhatsApp: ")
+                .append(wa)
+                .append("\n");
+
+        nota.append("Tanggal : ")
+                .append(tanggal)
+                .append("\n");
+
+        if (!motor.isEmpty()) {
+
+            nota.append("Motor   : ")
+                    .append(motor)
+                    .append("\n");
+        }
+
+        nota.append("\n");
+
+        nota.append(
+                "--------------------------------\n"
+        );
+
+        nota.append(
+                "BARANG / JASA\n"
+        );
+
+        nota.append(
+                "--------------------------------\n"
+        );
+
+        for (int i = 0;
+             i < namaBarang.size();
+             i++) {
+
+            String barang =
+                    namaBarang.get(i)
+                            .getText()
+                            .toString()
+                            .trim();
+
+            long jumlah =
+                    angka(jumlahBarang.get(i));
+
+            long harga =
+                    angka(hargaBarang.get(i));
+
+            if (!barang.isEmpty()) {
+
+                nota.append(barang)
+                        .append("\n");
+
+                nota.append(jumlah)
+                        .append(" x ")
+                        .append(
+                                formatRupiah(harga)
+                        )
+                        .append(" = ")
+                        .append(
+                                formatRupiah(
+                                        jumlah * harga
+                                )
+                        )
+                        .append("\n\n");
+            }
+        }
+
+        nota.append(
+                "--------------------------------\n"
+        );
+
+        nota.append("TOTAL : ")
+                .append(formatRupiah(total))
+                .append("\n");
+
+        nota.append("DP    : ")
+                .append(formatRupiah(dp))
+                .append("\n");
+
+        nota.append("SISA  : ")
+                .append(formatRupiah(sisa))
+                .append("\n");
+
+        nota.append(
+                "--------------------------------\n"
+        );
+
+        if (sisa == 0) {
+
+            nota.append(
+                    "STATUS: LUNAS\n"
+            );
+
+        } else {
+
+            nota.append(
+                    "STATUS: BELUM LUNAS\n"
+            );
+        }
+
+        nota.append("\n");
+
+        nota.append(
+                "Terima kasih sudah mempercayakan\n"
+        );
+
+        nota.append(
+                "kendaraan Anda kepada RR MOTOR.\n"
+        );
+
+        nota.append("\n");
+
+        nota.append(
+                "        RR MOTOR\n"
+        );
+
+        nota.append(
+                "================================\n"
+        );
+
+        return nota.toString();
+    }
+
+    private void cetakNota() {
+
+        String nama =
+                namaInput.getText()
+                        .toString()
+                        .trim();
+
+        String wa =
+                waInput.getText()
+                        .toString()
+                        .trim();
+
+        String tanggal =
+                tanggalInput.getText()
+                        .toString()
+                        .trim();
+
+        String motor =
+                motorInput.getText()
+                        .toString()
+                        .trim();
+
+        if (nama.isEmpty()) {
+
+            namaInput.setError(
+                    "Nama wajib diisi"
+            );
+
+            namaInput.requestFocus();
+
+            return;
+        }
+
+        if (wa.isEmpty()) {
+
+            waInput.setError(
+                    "Nomor WhatsApp wajib diisi"
+            );
+
+            waInput.requestFocus();
+
+            return;
+        }
+
+        if (tanggal.isEmpty()) {
+
+            tanggalInput.setError(
+                    "Tanggal wajib diisi"
+            );
+
+            return;
+        }
+
+        long total =
+                hitungTotal();
+
+        long dp =
+                angka(dpInput);
+
+        long sisa =
+                total - dp;
+
+        if (sisa < 0) {
+            sisa = 0;
+        }
+
+        String isiNota =
+                buatTeksNota(
+                        nama,
+                        wa,
+                        tanggal,
+                        motor,
+                        total,
+                        dp,
+                        sisa
+                );
+
+        PrintManager printManager =
+                (PrintManager)
+                        getSystemService(
+                                PRINT_SERVICE
+                        );
+
+        if (printManager != null) {
+
+            String namaCetak =
+                    "Nota RR MOTOR - " +
+                    nama;
+
+            PrintAttributes attributes =
+                    new PrintAttributes.Builder()
+                            .setMediaSize(
+                                    PrintAttributes.MediaSize.ISO_A4
+                            )
+                            .setMinMargins(
+                                    PrintAttributes.Margins.NO_MARGINS
+                            )
+                            .build();
+
+            printManager.print(
+                    namaCetak,
+                    new NotaPrintAdapter(isiNota),
+                    attributes
+            );
+
+        } else {
+
+            Toast.makeText(
+                    this,
+                    "Fitur cetak tidak tersedia di HP ini",
                     Toast.LENGTH_LONG
             ).show();
         }
