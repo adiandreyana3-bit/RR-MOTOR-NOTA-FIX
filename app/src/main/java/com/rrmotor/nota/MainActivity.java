@@ -22,16 +22,18 @@ import android.text.InputType;
 import android.text.TextWatcher;
 import android.view.Gravity;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.WindowManager;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.*;
 
 import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
 import java.util.Set;
-import java.util.Calendar;
 
 public class MainActivity extends Activity {
 
@@ -70,23 +72,19 @@ public class MainActivity extends Activity {
     private static final long SATU_TAHUN =
             365L * 24L * 60L * 60L * 1000L;
 
-    /*
-     * Jika nilainya bukan 0 berarti sedang mengedit
-     * nota dari riwayat.
-     */
     private long editingTimestamp = 0;
 
-    /*
-     * Status pembayaran:
-     * LUNAS
-     * BELUM LUNAS
-     */
     private String statusBayar = "BELUM LUNAS";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        /*
+         * PENTING:
+         * Keyboard mengecilkan area ScrollView,
+         * bukan menggeser seluruh Activity secara aneh.
+         */
         getWindow().setSoftInputMode(
                 WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
         );
@@ -104,8 +102,21 @@ public class MainActivity extends Activity {
 
         editingTimestamp = 0;
 
+        // =====================================================
+        // ROOT SCROLL
+        // =====================================================
+
         scrollView = new ScrollView(this);
+
         scrollView.setFillViewport(true);
+
+        scrollView.setVerticalScrollBarEnabled(true);
+
+        scrollView.setScrollbarFadingEnabled(false);
+
+        scrollView.setOverScrollMode(
+                View.OVER_SCROLL_ALWAYS
+        );
 
         LinearLayout utama =
                 new LinearLayout(this);
@@ -118,10 +129,22 @@ public class MainActivity extends Activity {
                 20,
                 15,
                 20,
-                40
+                60
         );
 
-        scrollView.addView(utama);
+        /*
+         * Supaya halaman tetap bisa menerima fokus
+         * dan tidak langsung meloncat ke bagian bawah.
+         */
+        utama.setFocusableInTouchMode(true);
+
+        scrollView.addView(
+                utama,
+                new ScrollView.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT
+                )
+        );
 
         // =====================================================
         // JUDUL
@@ -135,6 +158,7 @@ public class MainActivity extends Activity {
         );
 
         judul.setTextSize(23);
+
         judul.setTypeface(
                 null,
                 Typeface.BOLD
@@ -148,7 +172,7 @@ public class MainActivity extends Activity {
                 0,
                 5,
                 0,
-                12
+                15
         );
 
         utama.addView(judul);
@@ -229,6 +253,7 @@ public class MainActivity extends Activity {
         );
 
         statusLabel.setTextSize(16);
+
         statusLabel.setTypeface(
                 null,
                 Typeface.BOLD
@@ -236,7 +261,7 @@ public class MainActivity extends Activity {
 
         statusLabel.setPadding(
                 5,
-                8,
+                10,
                 5,
                 3
         );
@@ -311,7 +336,7 @@ public class MainActivity extends Activity {
                 0,
                 18,
                 0,
-                7
+                8
         );
 
         utama.addView(judulItem);
@@ -337,7 +362,21 @@ public class MainActivity extends Activity {
         tambahItem.setTextSize(14);
 
         tambahItem.setOnClickListener(
-                v -> tambahBarisItem()
+                v -> {
+
+                    tambahBarisItem();
+
+                    /*
+                     * Setelah tambah item,
+                     * geser otomatis ke bagian bawah.
+                     */
+                    scrollView.postDelayed(
+                            () -> scrollView.fullScroll(
+                                    View.FOCUS_DOWN
+                            ),
+                            150
+                    );
+                }
         );
 
         utama.addView(
@@ -365,9 +404,7 @@ public class MainActivity extends Activity {
                 3
         );
 
-        utama.addView(
-                totalText
-        );
+        utama.addView(totalText);
 
         sisaText =
                 new TextView(this);
@@ -379,9 +416,7 @@ public class MainActivity extends Activity {
                 Typeface.BOLD
         );
 
-        utama.addView(
-                sisaText
-        );
+        utama.addView(sisaText);
 
         statusText =
                 new TextView(this);
@@ -400,9 +435,7 @@ public class MainActivity extends Activity {
                 10
         );
 
-        utama.addView(
-                statusText
-        );
+        utama.addView(statusText);
 
         // =====================================================
         // SIMPAN
@@ -421,9 +454,7 @@ public class MainActivity extends Activity {
                 v -> simpanNota()
         );
 
-        utama.addView(
-                simpan
-        );
+        utama.addView(simpan);
 
         // =====================================================
         // CETAK BLUETOOTH
@@ -442,9 +473,7 @@ public class MainActivity extends Activity {
                 v -> mulaiCetakBluetooth()
         );
 
-        utama.addView(
-                cetakBluetooth
-        );
+        utama.addView(cetakBluetooth);
 
         // =====================================================
         // CETAK PDF
@@ -463,9 +492,7 @@ public class MainActivity extends Activity {
                 v -> cetakNota()
         );
 
-        utama.addView(
-                cetak
-        );
+        utama.addView(cetak);
 
         // =====================================================
         // RIWAYAT
@@ -484,9 +511,7 @@ public class MainActivity extends Activity {
                 v -> tampilkanRiwayat()
         );
 
-        utama.addView(
-                riwayat
-        );
+        utama.addView(riwayat);
 
         // =====================================================
         // WHATSAPP
@@ -505,17 +530,13 @@ public class MainActivity extends Activity {
                 v -> kirimWhatsApp()
         );
 
-        utama.addView(
-                whatsapp
-        );
+        utama.addView(whatsapp);
 
         // =====================================================
         // SET CONTENT
         // =====================================================
 
-        setContentView(
-                scrollView
-        );
+        setContentView(scrollView);
 
         // =====================================================
         // TANGGAL OTOMATIS
@@ -546,6 +567,79 @@ public class MainActivity extends Activity {
         statusSpinner.setSelection(0);
 
         hitungTotal();
+
+        // =====================================================
+        // PAKSA POSISI HALAMAN KE PALING ATAS
+        // =====================================================
+
+        scrollView.postDelayed(
+                () -> {
+
+                    scrollView.scrollTo(
+                            0,
+                            0
+                    );
+
+                    namaInput.clearFocus();
+
+                },
+                300
+        );
+
+        // =====================================================
+        // AGAR SETIAP INPUT YANG DIKLIK TERLIHAT
+        // =====================================================
+
+        pasangAutoScroll(
+                namaInput
+        );
+
+        pasangAutoScroll(
+                waInput
+        );
+
+        pasangAutoScroll(
+                tanggalInput
+        );
+
+        pasangAutoScroll(
+                motorInput
+        );
+
+        pasangAutoScroll(
+                dpInput
+        );
+    }
+
+    // =========================================================
+    // AUTO SCROLL INPUT
+    // =========================================================
+
+    private void pasangAutoScroll(
+            EditText input) {
+
+        input.setOnFocusChangeListener(
+                (v, hasFocus) -> {
+
+                    if (hasFocus) {
+
+                        scrollView.postDelayed(
+                                () -> {
+
+                                    scrollView.smoothScrollTo(
+                                            0,
+                                            Math.max(
+                                                    0,
+                                                    input.getTop() - 100
+                                            )
+                                    );
+
+                                },
+                                200
+                        );
+                    }
+                }
+        );
     }
 
     // =========================================================
@@ -559,13 +653,22 @@ public class MainActivity extends Activity {
                 new EditText(this);
 
         input.setHint(hint);
+
         input.setTextSize(16);
+
         input.setSingleLine(true);
 
         input.setFocusable(true);
+
         input.setFocusableInTouchMode(true);
+
         input.setClickable(true);
+
         input.setLongClickable(true);
+
+        input.setMinHeight(
+                52
+        );
 
         input.setPadding(
                 15,
@@ -752,6 +855,18 @@ public class MainActivity extends Activity {
                 harga
         );
 
+        pasangAutoScroll(
+                nama
+        );
+
+        pasangAutoScroll(
+                jumlah
+        );
+
+        pasangAutoScroll(
+                harga
+        );
+
         hapus.setOnClickListener(
                 v -> {
 
@@ -927,9 +1042,12 @@ public class MainActivity extends Activity {
                     angka(dpInput);
 
             if (dp >= total) {
+
                 statusBayar =
                         "LUNAS";
+
             } else {
+
                 statusBayar =
                         "BELUM LUNAS";
             }
@@ -1093,18 +1211,15 @@ public class MainActivity extends Activity {
                         ""
                 );
 
-        /*
-         * Jika sedang edit:
-         * gunakan timestamp lama.
-         *
-         * Jika nota baru:
-         * gunakan timestamp sekarang.
-         */
         long waktu;
 
         if (editingTimestamp != 0) {
-            waktu = editingTimestamp;
+
+            waktu =
+                    editingTimestamp;
+
         } else {
+
             waktu =
                     System.currentTimeMillis();
         }
@@ -1245,26 +1360,11 @@ public class MainActivity extends Activity {
         }
 
         return teks
-                .replace(
-                        "|",
-                        "%7C"
-                )
-                .replace(
-                        ";",
-                        "%3B"
-                )
-                .replace(
-                        "~",
-                        "%7E"
-                )
-                .replace(
-                        "\n",
-                        " "
-                )
-                .replace(
-                        "\r",
-                        " "
-                );
+                .replace("|", "%7C")
+                .replace(";", "%3B")
+                .replace("~", "%7E")
+                .replace("\n", " ")
+                .replace("\r", " ");
     }
 
     // =========================================================
@@ -1279,18 +1379,9 @@ public class MainActivity extends Activity {
         }
 
         return teks
-                .replace(
-                        "%7C",
-                        "|"
-                )
-                .replace(
-                        "%3B",
-                        ";"
-                )
-                .replace(
-                        "%7E",
-                        "~"
-                );
+                .replace("%7C", "|")
+                .replace("%3B", ";")
+                .replace("%7E", "~");
     }
 
     // =========================================================
@@ -1374,12 +1465,6 @@ public class MainActivity extends Activity {
 
         bersihkanRiwayatLama();
 
-        final ArrayList<String> hasilCari =
-                new ArrayList<>();
-
-        final ArrayList<Long> timestampCari =
-                new ArrayList<>();
-
         LinearLayout layout =
                 new LinearLayout(this);
 
@@ -1393,10 +1478,6 @@ public class MainActivity extends Activity {
                 20,
                 10
         );
-
-        // =====================================================
-        // PENCARIAN
-        // =====================================================
 
         EditText cariInput =
                 new EditText(this);
@@ -1434,6 +1515,8 @@ public class MainActivity extends Activity {
         ScrollView scrollDaftar =
                 new ScrollView(this);
 
+        scrollDaftar.setFillViewport(true);
+
         scrollDaftar.addView(
                 daftar
         );
@@ -1469,17 +1552,10 @@ public class MainActivity extends Activity {
                         .setView(layout)
                         .create();
 
-        // =====================================================
-        // TAMPILKAN DATA
-        // =====================================================
-
         Runnable tampilkanSemua =
                 () -> {
 
                     daftar.removeAllViews();
-
-                    hasilCari.clear();
-                    timestampCari.clear();
 
                     SharedPreferences pref =
                             getSharedPreferences(
@@ -1583,13 +1659,6 @@ public class MainActivity extends Activity {
 
                             String itemData;
 
-                            /*
-                             * Format baru:
-                             * timestamp|nama|wa|tanggal|motor|dp|status|items
-                             *
-                             * Format lama:
-                             * timestamp|nama|wa|tanggal|motor|dp|items
-                             */
                             if (bagian.length >= 8) {
 
                                 status =
@@ -1650,14 +1719,6 @@ public class MainActivity extends Activity {
                             if (sisa < 0) {
                                 sisa = 0;
                             }
-
-                            hasilCari.add(
-                                    nota
-                            );
-
-                            timestampCari.add(
-                                    timestamp
-                            );
 
                             daftar.addView(
                                     buatKartuRiwayat(
@@ -1723,10 +1784,10 @@ public class MainActivity extends Activity {
 
         dialog.show();
 
-        WindowManager.LayoutParams lp =
-                new WindowManager.LayoutParams();
-
         if (dialog.getWindow() != null) {
+
+            WindowManager.LayoutParams lp =
+                    new WindowManager.LayoutParams();
 
             lp.copyFrom(
                     dialog.getWindow()
@@ -1865,7 +1926,7 @@ public class MainActivity extends Activity {
         );
 
         // =====================================================
-        // TOMBOL EDIT
+        // EDIT
         // =====================================================
 
         Button edit =
@@ -1893,7 +1954,7 @@ public class MainActivity extends Activity {
         );
 
         // =====================================================
-        // TOMBOL PRINT
+        // PRINT
         // =====================================================
 
         Button print =
@@ -1912,16 +1973,17 @@ public class MainActivity extends Activity {
         print.setOnClickListener(
                 v -> {
 
-                    muatNotaDariRiwayat(
+                    if (muatNotaDariRiwayat(
                             timestamp
-                    );
+                    )) {
 
-                    mulaiCetakBluetooth();
+                        mulaiCetakBluetooth();
+                    }
                 }
         );
 
         // =====================================================
-        // TOMBOL WHATSAPP
+        // WHATSAPP
         // =====================================================
 
         Button waButton =
@@ -1940,16 +2002,17 @@ public class MainActivity extends Activity {
         waButton.setOnClickListener(
                 v -> {
 
-                    muatNotaDariRiwayat(
+                    if (muatNotaDariRiwayat(
                             timestamp
-                    );
+                    )) {
 
-                    kirimWhatsApp();
+                        kirimWhatsApp();
+                    }
                 }
         );
 
         // =====================================================
-        // TOMBOL HAPUS
+        // HAPUS
         // =====================================================
 
         Button hapus =
@@ -2019,7 +2082,7 @@ public class MainActivity extends Activity {
     }
 
     // =========================================================
-    // HITUNG TOTAL ITEM DARI DATA
+    // TOTAL ITEM
     // =========================================================
 
     private long hitungTotalItem(
@@ -2042,9 +2105,7 @@ public class MainActivity extends Activity {
             try {
 
                 String[] isi =
-                        item.split(
-                                "~"
-                        );
+                        item.split("~");
 
                 if (isi.length >= 3) {
 
@@ -2151,7 +2212,7 @@ public class MainActivity extends Activity {
     }
 
     // =========================================================
-    // BUKA NOTA UNTUK EDIT
+    // BUKA NOTA EDIT
     // =========================================================
 
     private void bukaNotaUntukEdit(
@@ -2196,6 +2257,22 @@ public class MainActivity extends Activity {
                 "Mode EDIT nota aktif ✏️",
                 Toast.LENGTH_LONG
         ).show();
+
+        /*
+         * Setelah edit dibuka,
+         * selalu kembali ke bagian nama pelanggan.
+         */
+        scrollView.postDelayed(
+                () -> {
+
+                    scrollView.scrollTo(
+                            0,
+                            0
+                    );
+
+                },
+                250
+        );
     }
 
     // =========================================================
@@ -2257,7 +2334,7 @@ public class MainActivity extends Activity {
     }
 
     // =========================================================
-    // MUAT NOTA DARI RIWAYAT
+    // MUAT NOTA
     // =========================================================
 
     private boolean muatNotaDariRiwayat(
@@ -2278,7 +2355,7 @@ public class MainActivity extends Activity {
     }
 
     // =========================================================
-    // MUAT DATA NOTA KE HALAMAN UTAMA
+    // MUAT DATA
     // =========================================================
 
     private boolean muatDataNota(
@@ -2376,10 +2453,6 @@ public class MainActivity extends Activity {
                 );
             }
 
-            // =================================================
-            // BERSIHKAN ITEM LAMA
-            // =================================================
-
             itemContainer.removeAllViews();
 
             namaBarang.clear();
@@ -2395,9 +2468,7 @@ public class MainActivity extends Activity {
                     items) {
 
                 String[] isi =
-                        item.split(
-                                "~"
-                        );
+                        item.split("~");
 
                 if (isi.length < 3) {
                     continue;
@@ -2449,7 +2520,6 @@ public class MainActivity extends Activity {
             }
 
             if (!adaItem) {
-
                 tambahBarisItem();
             }
 
@@ -2464,8 +2534,7 @@ public class MainActivity extends Activity {
     }
 
     // =========================================================
-    // TEKS NOTA CETAK
-    // FORMAT TIDAK DIUBAH
+    // TEKS NOTA
     // =========================================================
 
     private String buatTeksNota() {
@@ -2642,14 +2711,6 @@ public class MainActivity extends Activity {
         )
         .append("\n");
 
-        /*
-         * Bentuk tulisan cetak tetap:
-         * STATUS: LUNAS
-         * STATUS: BELUM LUNAS
-         *
-         * Yang berubah hanya pilihan statusnya.
-         */
-
         if ("LUNAS".equals(
                 statusBayar
         )) {
@@ -2687,7 +2748,7 @@ public class MainActivity extends Activity {
     }
 
     // =========================================================
-    // CETAK ANDROID / PDF
+    // CETAK PDF
     // =========================================================
 
     private void cetakNota() {
@@ -3274,7 +3335,7 @@ public class MainActivity extends Activity {
     }
 
     // =========================================================
-    // CETAK KE PRINTER
+    // CETAK PRINTER
     // =========================================================
 
     private void cetakKePrinter(
@@ -3398,8 +3459,8 @@ public class MainActivity extends Activity {
         input.postDelayed(
                 () -> {
 
-                    android.view.inputmethod.InputMethodManager imm =
-                            (android.view.inputmethod.InputMethodManager)
+                    InputMethodManager imm =
+                            (InputMethodManager)
                                     getSystemService(
                                             Context.INPUT_METHOD_SERVICE
                                     );
@@ -3408,8 +3469,7 @@ public class MainActivity extends Activity {
 
                         imm.showSoftInput(
                                 input,
-                                android.view.inputmethod.InputMethodManager
-                                        .SHOW_IMPLICIT
+                                InputMethodManager.SHOW_IMPLICIT
                         );
                     }
 
@@ -3418,13 +3478,20 @@ public class MainActivity extends Activity {
                         scrollView.postDelayed(
                                 () -> {
 
+                                    int posisi =
+                                            input.getTop() - 120;
+
+                                    if (posisi < 0) {
+                                        posisi = 0;
+                                    }
+
                                     scrollView.smoothScrollTo(
                                             0,
-                                            input.getBottom()
+                                            posisi
                                     );
 
                                 },
-                                200
+                                250
                         );
                     }
 
