@@ -6,7 +6,7 @@ import android.bluetooth.BluetoothSocket;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
+import java.nio.charset.Charset;
 import java.util.UUID;
 
 public class BluetoothPrinter {
@@ -17,7 +17,7 @@ public class BluetoothPrinter {
     private OutputStream outputStream;
 
     // =========================================================
-    // STANDARD BLUETOOTH SERIAL PORT PROFILE (SPP)
+    // UUID BLUETOOTH SERIAL PORT PROFILE
     // =========================================================
 
     private static final UUID SPP_UUID =
@@ -34,50 +34,58 @@ public class BluetoothPrinter {
     }
 
     // =========================================================
-    // CONNECT DENGAN RETRY
+    // CONNECT
     // =========================================================
 
     public void connect() throws IOException {
 
         if (device == null) {
             throw new IOException(
-                    "Printer tidak ditemukan"
+                    "Printer Bluetooth tidak ditemukan"
+            );
+        }
+
+        BluetoothAdapter adapter =
+                BluetoothAdapter.getDefaultAdapter();
+
+        if (adapter == null) {
+            throw new IOException(
+                    "Bluetooth tidak tersedia di HP"
             );
         }
 
         IOException errorTerakhir = null;
 
-        /*
-         * Coba maksimal 3 kali.
-         *
-         * Banyak printer thermal Bluetooth kadang gagal
-         * pada percobaan pertama walaupun sudah paired.
-         */
-        for (int percobaan = 1; percobaan <= 3; percobaan++) {
+        // ---------------------------------------------------------
+        // MATIKAN DISCOVERY
+        // ---------------------------------------------------------
+
+        try {
+            adapter.cancelDiscovery();
+        } catch (Exception ignored) {
+        }
+
+        // ---------------------------------------------------------
+        // COBA SAMPAI 3 KALI
+        // ---------------------------------------------------------
+
+        for (int percobaan = 1;
+             percobaan <= 3;
+             percobaan++) {
 
             try {
 
                 tutupSocket();
 
-                BluetoothAdapter adapter =
-                        BluetoothAdapter.getDefaultAdapter();
-
-                if (adapter != null) {
-
-                    /*
-                     * WAJIB dilakukan sebelum connect.
-                     * Discovery Bluetooth dapat mengganggu
-                     * atau memperlambat koneksi printer.
-                     */
-                    try {
-                        adapter.cancelDiscovery();
-                    } catch (Exception ignored) {
-                    }
+                // Pastikan discovery benar-benar berhenti
+                try {
+                    adapter.cancelDiscovery();
+                } catch (Exception ignored) {
                 }
 
-                // =================================================
-                // COBA KONEKSI NORMAL
-                // =================================================
+                // -------------------------------------------------
+                // COBA RFCOMM NORMAL
+                // -------------------------------------------------
 
                 try {
 
@@ -90,20 +98,15 @@ public class BluetoothPrinter {
 
                 } catch (IOException normalError) {
 
-                    /*
-                     * Beberapa printer thermal murah/legacy
-                     * lebih cocok menggunakan insecure RFCOMM.
-                     *
-                     * Karena itu kita coba metode kedua.
-                     */
+                    // -------------------------------------------------
+                    // JIKA GAGAL, COBA INSECURE RFCOMM
+                    // -------------------------------------------------
 
                     tutupSocket();
 
-                    if (adapter != null) {
-                        try {
-                            adapter.cancelDiscovery();
-                        } catch (Exception ignored) {
-                        }
+                    try {
+                        adapter.cancelDiscovery();
+                    } catch (Exception ignored) {
                     }
 
                     socket =
@@ -114,9 +117,9 @@ public class BluetoothPrinter {
                     socket.connect();
                 }
 
-                // =================================================
+                // -------------------------------------------------
                 // AMBIL OUTPUT STREAM
-                // =================================================
+                // -------------------------------------------------
 
                 outputStream =
                         socket.getOutputStream();
@@ -128,9 +131,9 @@ public class BluetoothPrinter {
                     );
                 }
 
-                // =================================================
+                // -------------------------------------------------
                 // BERHASIL
-                // =================================================
+                // -------------------------------------------------
 
                 return;
 
@@ -144,13 +147,13 @@ public class BluetoothPrinter {
 
                 tutupSocket();
 
-                /*
-                 * Beri sedikit waktu sebelum percobaan berikutnya.
-                 */
+                // Tunggu sebelum mencoba lagi
                 if (percobaan < 3) {
 
                     try {
-                        Thread.sleep(700);
+
+                        Thread.sleep(1000);
+
                     } catch (InterruptedException interruptedException) {
 
                         Thread.currentThread().interrupt();
@@ -165,7 +168,7 @@ public class BluetoothPrinter {
         }
 
         // =========================================================
-        // SEMUA PERCOBAAN GAGAL
+        // GAGAL SETELAH 3 KALI
         // =========================================================
 
         if (errorTerakhir != null) {
@@ -177,18 +180,17 @@ public class BluetoothPrinter {
                     pesan.trim().isEmpty()) {
 
                 pesan =
-                        "Tidak dapat terhubung ke printer";
+                        "Printer tidak merespons";
             }
 
             throw new IOException(
-                    "Gagal terhubung setelah 3 percobaan: "
-                            + pesan,
-                    errorTerakhir
+                    "Tidak dapat terhubung ke printer: "
+                            + pesan
             );
         }
 
         throw new IOException(
-                "Gagal terhubung ke printer"
+                "Tidak dapat terhubung ke printer"
         );
     }
 
@@ -213,6 +215,10 @@ public class BluetoothPrinter {
             );
         }
 
+        if (teks == null) {
+            teks = "";
+        }
+
         // =========================================================
         // RESET PRINTER
         // =========================================================
@@ -225,34 +231,7 @@ public class BluetoothPrinter {
         );
 
         // =========================================================
-        // RATA TENGAH
-        // =========================================================
-
-        outputStream.write(
-                new byte[]{
-                        0x1B,
-                        0x61,
-                        0x01
-                }
-        );
-
-        // =========================================================
-        // CETAK TEKS
-        // =========================================================
-
-        if (teks == null) {
-            teks = "";
-        }
-
-        byte[] data =
-                teks.getBytes(
-                        StandardCharsets.UTF_8
-                );
-
-        outputStream.write(data);
-
-        // =========================================================
-        // KEMBALI KE RATA KIRI
+        // RATA KIRI
         // =========================================================
 
         outputStream.write(
@@ -262,6 +241,36 @@ public class BluetoothPrinter {
                         0x00
                 }
         );
+
+        // =========================================================
+        // FONT NORMAL
+        // =========================================================
+
+        outputStream.write(
+                new byte[]{
+                        0x1B,
+                        0x21,
+                        0x00
+                }
+        );
+
+        // =========================================================
+        // CETAK TEKS
+        // =========================================================
+        //
+        // Banyak printer thermal 58mm menggunakan CP437/ASCII.
+        // Karakter emoji tidak selalu didukung printer thermal.
+        //
+        // Karena itu kita gunakan charset yang lebih aman.
+        // =========================================================
+
+        Charset charset =
+                Charset.forName("windows-1252");
+
+        byte[] data =
+                teks.getBytes(charset);
+
+        outputStream.write(data);
 
         // =========================================================
         // FEED KERTAS
@@ -276,11 +285,141 @@ public class BluetoothPrinter {
                 }
         );
 
+        // =========================================================
+        // POTONG KERTAS
+        // =========================================================
+        //
+        // Tidak semua printer mendukung cutter.
+        // Perintah ini aman untuk printer yang mendukungnya.
+        // =========================================================
+
+        try {
+
+            outputStream.write(
+                    new byte[]{
+                            0x1D,
+                            0x56,
+                            0x00
+                    }
+            );
+
+        } catch (Exception ignored) {
+        }
+
+        // =========================================================
+        // PASTIKAN SEMUA DATA TERKIRIM
+        // =========================================================
+
         outputStream.flush();
+
+        // Beri sedikit waktu agar printer menerima data
+        try {
+
+            Thread.sleep(300);
+
+        } catch (InterruptedException e) {
+
+            Thread.currentThread().interrupt();
+        }
     }
 
     // =========================================================
-    // CEK TERHUBUNG
+    // TEST PRINT
+    // =========================================================
+
+    public void testPrint() throws IOException {
+
+        if (socket == null ||
+                !socket.isConnected()) {
+
+            throw new IOException(
+                    "Printer belum terhubung"
+            );
+        }
+
+        if (outputStream == null) {
+
+            throw new IOException(
+                    "Output printer tidak tersedia"
+            );
+        }
+
+        // Reset
+        outputStream.write(
+                new byte[]{
+                        0x1B,
+                        0x40
+                }
+        );
+
+        // Tengah
+        outputStream.write(
+                new byte[]{
+                        0x1B,
+                        0x61,
+                        0x01
+                }
+        );
+
+        // Besarkan tulisan
+        outputStream.write(
+                new byte[]{
+                        0x1D,
+                        0x21,
+                        0x11
+                }
+        );
+
+        outputStream.write(
+                "RR MOTOR\n"
+                        .getBytes(
+                                Charset.forName(
+                                        "windows-1252"
+                                )
+                        )
+        );
+
+        // Kembali normal
+        outputStream.write(
+                new byte[]{
+                        0x1D,
+                        0x21,
+                        0x00
+                }
+        );
+
+        outputStream.write(
+                "TEST PRINT\n"
+                        .getBytes(
+                                Charset.forName(
+                                        "windows-1252"
+                                )
+                        )
+        );
+
+        outputStream.write(
+                "\nBluetooth OK\n\n\n\n"
+                        .getBytes(
+                                Charset.forName(
+                                        "windows-1252"
+                                )
+                        )
+        );
+
+        outputStream.flush();
+
+        try {
+
+            Thread.sleep(500);
+
+        } catch (InterruptedException e) {
+
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    // =========================================================
+    // CEK KONEKSI
     // =========================================================
 
     public boolean isConnected() {
@@ -288,7 +427,8 @@ public class BluetoothPrinter {
         try {
 
             return socket != null &&
-                    socket.isConnected();
+                    socket.isConnected() &&
+                    outputStream != null;
 
         } catch (Exception e) {
 
@@ -302,22 +442,25 @@ public class BluetoothPrinter {
 
     private void tutupSocket() {
 
-        try {
+        if (outputStream != null) {
 
-            if (outputStream != null) {
-                outputStream.close();
+            try {
+                outputStream.flush();
+            } catch (Exception ignored) {
             }
 
-        } catch (Exception ignored) {
+            try {
+                outputStream.close();
+            } catch (Exception ignored) {
+            }
         }
 
-        try {
+        if (socket != null) {
 
-            if (socket != null) {
+            try {
                 socket.close();
+            } catch (Exception ignored) {
             }
-
-        } catch (Exception ignored) {
         }
 
         outputStream = null;
@@ -329,6 +472,7 @@ public class BluetoothPrinter {
     // =========================================================
 
     public void disconnect() {
+
         tutupSocket();
     }
 }
