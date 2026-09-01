@@ -32,8 +32,7 @@
         android:icon="@drawable/icon_rr_motor"
         android:label="RR MOTOR NOTA"
         android:roundIcon="@drawable/icon_rr_motor"
-        android:supportsRtl="true"
-        android:theme="@style/AppTheme">
+        android:supportsRtl="true">
 
         <!-- ================================================= -->
         <!-- MAIN ACTIVITY                                      -->
