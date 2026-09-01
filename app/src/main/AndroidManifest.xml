@@ -1,14 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
+
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Bluetooth Android 11 ke bawah -->
+    <!-- ===================================================== -->
+    <!-- BLUETOOTH ANDROID 11 KE BAWAH                         -->
+    <!-- ===================================================== -->
+
     <uses-permission
         android:name="android.permission.BLUETOOTH" />
 
     <uses-permission
         android:name="android.permission.BLUETOOTH_ADMIN" />
 
-    <!-- Bluetooth Android 12+ -->
+    <!-- ===================================================== -->
+    <!-- BLUETOOTH ANDROID 12+                                 -->
+    <!-- ===================================================== -->
+
     <uses-permission
         android:name="android.permission.BLUETOOTH_CONNECT" />
 
@@ -16,17 +23,25 @@
         android:name="android.permission.BLUETOOTH_SCAN"
         android:usesPermissionFlags="neverForLocation" />
 
+    <!-- ===================================================== -->
+    <!-- APLIKASI                                               -->
+    <!-- ===================================================== -->
+
     <application
         android:allowBackup="false"
+        android:icon="@drawable/icon_rr_motor"
         android:label="RR MOTOR NOTA"
+        android:roundIcon="@drawable/icon_rr_motor"
         android:supportsRtl="true"
-        android:theme="@android:style/Theme.Material.Light.NoActionBar"
-        android:windowSoftInputMode="adjustResize">
+        android:theme="@style/AppTheme">
+
+        <!-- ================================================= -->
+        <!-- MAIN ACTIVITY                                      -->
+        <!-- ================================================= -->
 
         <activity
             android:name=".MainActivity"
-            android:exported="true"
-            android:screenOrientation="portrait">
+            android:exported="true">
 
             <intent-filter>
 
