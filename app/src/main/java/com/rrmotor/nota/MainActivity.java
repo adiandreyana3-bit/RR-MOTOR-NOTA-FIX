@@ -104,13 +104,6 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        /*
-         * ADJUST_RESIZE membuat area aplikasi mengecil
-         * ketika keyboard muncul.
-         *
-         * STATE_ALWAYS_HIDDEN mencegah keyboard langsung
-         * muncul ketika halaman dibuka.
-         */
         getWindow().setSoftInputMode(
                 WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE |
                         WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN
@@ -336,11 +329,6 @@ public class MainActivity extends Activity {
         scrollView =
                 new ScrollView(this);
 
-        /*
-         * Perbaikan keyboard:
-         * ScrollView mengisi area yang tersedia dan tidak
-         * memotong padding.
-         */
         scrollView.setFillViewport(true);
         scrollView.setClipToPadding(false);
         scrollView.setSmoothScrollingEnabled(true);
@@ -477,9 +465,6 @@ public class MainActivity extends Activity {
                         InputType.TYPE_NUMBER_FLAG_DECIMAL
         );
 
-        /*
-         * Supaya total langsung berubah ketika DP diketik.
-         */
         dpInput.addTextChangedListener(
                 new android.text.TextWatcher() {
 
@@ -878,17 +863,6 @@ public class MainActivity extends Activity {
         return input;
     }
 
-    /*
-     * PERBAIKAN KEYBOARD
-     *
-     * Versi lama menggunakan view.getTop().
-     * getTop() hanya relatif terhadap parent langsung,
-     * sehingga pada item yang bertingkat hasil scroll
-     * bisa salah.
-     *
-     * Sekarang posisi input dihitung berdasarkan posisi
-     * sebenarnya di layar.
-     */
     private void pastikanInputTerlihat(
             View view) {
 
@@ -930,11 +904,6 @@ public class MainActivity extends Activity {
                     int tinggiTerlihat =
                             scrollView.getHeight();
 
-                    /*
-                     * Beri jarak aman 80 px dari batas
-                     * bawah supaya input tidak menempel
-                     * dengan keyboard.
-                     */
                     int batasBawah =
                             tinggiTerlihat - 80;
 
@@ -1188,11 +1157,6 @@ public class MainActivity extends Activity {
             hitungTotal();
         });
 
-        /*
-         * Setelah menambah item, beri sedikit waktu kepada
-         * layout untuk menghitung posisi sebelum keyboard
-         * digunakan.
-         */
         itemContainer.post(
                 () -> hitungTotal()
         );
@@ -1832,7 +1796,7 @@ public class MainActivity extends Activity {
     }
 
     // ============================================================
-    // MIGRASI DATA LAMA KE FIREBASE
+    // MIGRASI DATA LAMA
     // ============================================================
 
     private void migrasiRiwayatLokalKeCloud() {
@@ -3345,12 +3309,6 @@ public class MainActivity extends Activity {
                                 PRINT_SERVICE
                         );
 
-        /*
-         * 80 mm x 300 mm.
-         *
-         * 3150 mil = kurang lebih 80 mm.
-         * 11811 mil = kurang lebih 300 mm.
-         */
         PrintAttributes.MediaSize ukuran80mm =
                 new PrintAttributes.MediaSize(
                         "RR_MOTOR_80MM",
@@ -3382,7 +3340,7 @@ public class MainActivity extends Activity {
     }
 
     // ============================================================
-    // CETAK BLUETOOTH
+    // BLUETOOTH
     // ============================================================
 
     private void pilihPrinterBluetooth() {
@@ -3658,7 +3616,8 @@ public class MainActivity extends Activity {
                         "Printer Bluetooth";
             }
 
-            if (name == null) {
+            if (name == null ||
+                    name.trim().isEmpty()) {
 
                 name =
                         "Printer Bluetooth";
@@ -3692,26 +3651,53 @@ public class MainActivity extends Activity {
                 .show();
     }
 
+    // ============================================================
+    // CETAK BLUETOOTH - VERSI STABIL
+    // ============================================================
+
     private void cetakKePrinter(
             BluetoothDevice device,
             String teks) {
 
+        if (device == null) {
+
+            Toast.makeText(
+                    this,
+                    "Printer tidak ditemukan",
+                    Toast.LENGTH_SHORT
+            ).show();
+
+            return;
+        }
+
+        if (teks == null ||
+                teks.trim().isEmpty()) {
+
+            Toast.makeText(
+                    this,
+                    "Nota kosong",
+                    Toast.LENGTH_SHORT
+            ).show();
+
+            return;
+        }
+
         Toast.makeText(
                 this,
-                "Menghubungkan ke printer...",
+                "🔵 Menghubungkan ke printer...",
                 Toast.LENGTH_SHORT
         ).show();
 
         new Thread(() -> {
 
             BluetoothSocket socket = null;
+            OutputStream output = null;
 
             try {
 
-                UUID uuid =
-                        UUID.fromString(
-                                "00001101-0000-1000-8000-00805F9B34FB"
-                        );
+                // ------------------------------------------------
+                // CEK IZIN BLUETOOTH
+                // ------------------------------------------------
 
                 if (Build.VERSION.SDK_INT >=
                         Build.VERSION_CODES.S) {
@@ -3724,7 +3710,7 @@ public class MainActivity extends Activity {
                                 Toast.makeText(
                                         this,
                                         "Izin Bluetooth belum diberikan",
-                                        Toast.LENGTH_SHORT
+                                        Toast.LENGTH_LONG
                                 ).show()
                         );
 
@@ -3732,83 +3718,586 @@ public class MainActivity extends Activity {
                     }
                 }
 
-                socket =
-                        device.createRfcommSocketToServiceRecord(
-                                uuid
+                UUID uuid =
+                        UUID.fromString(
+                                "00001101-0000-1000-8000-00805F9B34FB"
                         );
 
-                if (bluetoothAdapter != null) {
+                // ------------------------------------------------
+                // MATIKAN DISCOVERY
+                // ------------------------------------------------
 
-                    bluetoothAdapter.cancelDiscovery();
+                try {
+
+                    if (bluetoothAdapter != null) {
+
+                        bluetoothAdapter.cancelDiscovery();
+                    }
+
+                } catch (Exception ignored) {
                 }
 
-                socket.connect();
+                // ------------------------------------------------
+                // PERCOBAAN 1
+                // STANDARD RFCOMM
+                // ------------------------------------------------
 
-                OutputStream output =
+                try {
+
+                    socket =
+                            device.createRfcommSocketToServiceRecord(
+                                    uuid
+                            );
+
+                    socket.connect();
+
+                } catch (Exception koneksiPertama) {
+
+                    try {
+
+                        if (socket != null) {
+
+                            try {
+                                socket.close();
+                            } catch (Exception ignored) {
+                            }
+
+                            socket = null;
+                        }
+
+                        // ----------------------------------------
+                        // PERCOBAAN 2
+                        // INSECURE RFCOMM
+                        // ----------------------------------------
+
+                        socket =
+                                device.createInsecureRfcommSocketToServiceRecord(
+                                        uuid
+                                );
+
+                        socket.connect();
+
+                    } catch (Exception koneksiKedua) {
+
+                        try {
+
+                            if (socket != null) {
+
+                                try {
+                                    socket.close();
+                                } catch (Exception ignored) {
+                                }
+
+                                socket = null;
+                            }
+
+                            // ------------------------------------
+                            // PERCOBAAN 3
+                            // RFCOMM CHANNEL 1
+                            // ------------------------------------
+
+                            java.lang.reflect.Method method =
+                                    device.getClass()
+                                            .getMethod(
+                                                    "createRfcommSocket",
+                                                    int.class
+                                            );
+
+                            socket =
+                                    (BluetoothSocket)
+                                            method.invoke(
+                                                    device,
+                                                    1
+                                            );
+
+                            socket.connect();
+
+                        } catch (Exception koneksiKetiga) {
+
+                            throw new java.io.IOException(
+                                    "Tidak dapat terhubung ke printer"
+                            );
+                        }
+                    }
+                }
+
+                // ------------------------------------------------
+                // TUNGGU PRINTER SIAP
+                // ------------------------------------------------
+
+                Thread.sleep(500);
+
+                output =
                         socket.getOutputStream();
 
-                output.write(
+                // ------------------------------------------------
+                // RESET PRINTER
+                // ------------------------------------------------
+
+                kirimDataPrinter(
+                        output,
                         new byte[]{
                                 0x1B,
                                 0x40
                         }
                 );
 
-                output.write(
-                        teks.getBytes("GBK")
-                );
+                Thread.sleep(200);
 
-                output.write(
+                // ------------------------------------------------
+                // ALIGN LEFT
+                // ------------------------------------------------
+
+                kirimDataPrinter(
+                        output,
                         new byte[]{
-                                0x0A,
-                                0x0A,
-                                0x0A
+                                0x1B,
+                                0x61,
+                                0x00
                         }
                 );
 
-                output.write(
+                // ------------------------------------------------
+                // FONT NORMAL
+                // ------------------------------------------------
+
+                kirimDataPrinter(
+                        output,
                         new byte[]{
                                 0x1D,
-                                0x56,
+                                0x21,
                                 0x00
+                        }
+                );
+
+                Thread.sleep(150);
+
+                // ------------------------------------------------
+                // KONVERSI TEKS
+                // ------------------------------------------------
+
+                String teksCetak =
+                        bersihkanTeksUntukPrinter(
+                                teks
+                        );
+
+                String[] lines =
+                        teksCetak.split(
+                                "\n",
+                                -1
+                        );
+
+                /*
+                 * 80mm biasanya sekitar 48 karakter.
+                 *
+                 * Kalau printer 58mm dan hasil terlalu
+                 * melebar, nanti angka ini bisa diubah
+                 * menjadi 32.
+                 */
+                final int LEBAR_KARAKTER = 48;
+
+                int jumlahBaris = 0;
+
+                // ------------------------------------------------
+                // KIRIM PER BARIS
+                // ------------------------------------------------
+
+                for (String line :
+                        lines) {
+
+                    if (line == null) {
+                        line = "";
+                    }
+
+                    ArrayList<String> potongan =
+                            pecahBarisPrinter(
+                                    line,
+                                    LEBAR_KARAKTER
+                            );
+
+                    for (String bagian :
+                            potongan) {
+
+                        if (bagian == null) {
+                            bagian = "";
+                        }
+
+                        byte[] data;
+
+                        try {
+
+                            data =
+                                    bagian.getBytes(
+                                            java.nio.charset.Charset.forName(
+                                                    "GBK"
+                                            )
+                                    );
+
+                        } catch (Exception e) {
+
+                            data =
+                                    bagian.getBytes(
+                                            java.nio.charset.StandardCharsets.UTF_8
+                                    );
+                        }
+
+                        // ----------------------------------------
+                        // KIRIM DATA DALAM CHUNK KECIL
+                        // ----------------------------------------
+
+                        kirimDataPrinter(
+                                output,
+                                data
+                        );
+
+                        // ----------------------------------------
+                        // ENTER
+                        // ----------------------------------------
+
+                        kirimDataPrinter(
+                                output,
+                                new byte[]{
+                                        0x0A
+                                }
+                        );
+
+                        jumlahBaris++;
+
+                        /*
+                         * Jeda kecil setiap baris.
+                         * Ini penting untuk printer Bluetooth
+                         * yang buffer-nya kecil.
+                         */
+                        Thread.sleep(35);
+
+                        /*
+                         * Setiap 8 baris beri jeda lebih panjang.
+                         */
+                        if (jumlahBaris % 8 == 0) {
+
+                            try {
+                                output.flush();
+                            } catch (Exception ignored) {
+                            }
+
+                            Thread.sleep(180);
+                        }
+                    }
+                }
+
+                // ------------------------------------------------
+                // PASTIKAN SEMUA DATA TERKIRIM
+                // ------------------------------------------------
+
+                output.flush();
+
+                /*
+                 * Beri waktu printer menghabiskan buffer.
+                 */
+                Thread.sleep(1200);
+
+                // ------------------------------------------------
+                // FEED KERTAS
+                // ------------------------------------------------
+
+                kirimDataPrinter(
+                        output,
+                        new byte[]{
+                                0x1B,
+                                0x64,
+                                0x06
                         }
                 );
 
                 output.flush();
 
+                Thread.sleep(1000);
+
+                // ------------------------------------------------
+                // POTONG KERTAS
+                // ------------------------------------------------
+
+                try {
+
+                    kirimDataPrinter(
+                            output,
+                            new byte[]{
+                                    0x1D,
+                                    0x56,
+                                    0x00
+                            }
+                    );
+
+                    output.flush();
+
+                } catch (Exception ignored) {
+                    /*
+                     * Tidak semua printer memiliki cutter.
+                     * Kalau tidak punya cutter, perintah ini
+                     * cukup diabaikan.
+                     */
+                }
+
+                Thread.sleep(700);
+
+                // ------------------------------------------------
+                // SUKSES
+                // ------------------------------------------------
+
                 runOnUiThread(() ->
                         Toast.makeText(
                                 this,
-                                "Nota berhasil dicetak 🔵🖨️",
+                                "✅ Nota berhasil dicetak",
                                 Toast.LENGTH_SHORT
                         ).show()
                 );
 
             } catch (Exception e) {
 
+                String pesan =
+                        e.getMessage();
+
+                if (pesan == null ||
+                        pesan.trim().isEmpty()) {
+
+                    pesan =
+                            "Koneksi printer gagal";
+                }
+
+                final String pesanFinal =
+                        pesan;
+
                 runOnUiThread(() ->
                         Toast.makeText(
                                 this,
-                                "Gagal mencetak: " +
-                                        e.getMessage(),
+                                "❌ Gagal mencetak:\n" +
+                                        pesanFinal,
                                 Toast.LENGTH_LONG
                         ).show()
                 );
 
             } finally {
 
+                // ------------------------------------------------
+                // TUTUP OUTPUT
+                // ------------------------------------------------
+
+                if (output != null) {
+
+                    try {
+                        output.flush();
+                    } catch (Exception ignored) {
+                    }
+
+                    try {
+                        output.close();
+                    } catch (Exception ignored) {
+                    }
+                }
+
+                // ------------------------------------------------
+                // TUTUP SOCKET
+                // ------------------------------------------------
+
                 if (socket != null) {
 
                     try {
-
                         socket.close();
-
                     } catch (Exception ignored) {
                     }
                 }
             }
 
         }).start();
+    }
+
+    // ============================================================
+    // KIRIM DATA PRINTER SECARA BERTAHAP
+    // ============================================================
+
+    private void kirimDataPrinter(
+            OutputStream output,
+            byte[] data)
+            throws java.io.IOException {
+
+        if (output == null ||
+                data == null ||
+                data.length == 0) {
+
+            return;
+        }
+
+        /*
+         * Jangan langsung mengirim data besar.
+         *
+         * Printer thermal Bluetooth tertentu bisa
+         * kehilangan data kalau buffer terlalu cepat penuh.
+         */
+        final int UKURAN_CHUNK = 128;
+
+        int posisi = 0;
+
+        while (posisi < data.length) {
+
+            int jumlah =
+                    Math.min(
+                            UKURAN_CHUNK,
+                            data.length - posisi
+                    );
+
+            output.write(
+                    data,
+                    posisi,
+                    jumlah
+            );
+
+            output.flush();
+
+            posisi += jumlah;
+
+            try {
+
+                Thread.sleep(20);
+
+            } catch (InterruptedException e) {
+
+                Thread.currentThread()
+                        .interrupt();
+
+                throw new java.io.IOException(
+                        "Pengiriman printer dihentikan"
+                );
+            }
+        }
+    }
+
+    // ============================================================
+    // BERSIHKAN TEKS UNTUK PRINTER
+    // ============================================================
+
+    private String bersihkanTeksUntukPrinter(
+            String teks) {
+
+        if (teks == null) {
+            return "";
+        }
+
+        /*
+         * Printer thermal GBK biasanya tidak mampu
+         * mencetak emoji dengan benar.
+         *
+         * Emoji tidak boleh dibiarkan mengganggu
+         * panjang baris.
+         */
+        StringBuilder hasil =
+                new StringBuilder();
+
+        for (int i = 0;
+             i < teks.length();
+             i++) {
+
+            char c =
+                    teks.charAt(i);
+
+            /*
+             * Hilangkan surrogate Unicode yang biasanya
+             * digunakan untuk emoji.
+             */
+            if (Character.isHighSurrogate(c)) {
+
+                if (i + 1 < teks.length() &&
+                        Character.isLowSurrogate(
+                                teks.charAt(i + 1)
+                        )) {
+
+                    i++;
+                    continue;
+                }
+            }
+
+            if (Character.isLowSurrogate(c)) {
+                continue;
+            }
+
+            /*
+             * Pertahankan karakter ASCII dan karakter
+             * umum Indonesia.
+             */
+            if (c == '\n' ||
+                    c == '\r' ||
+                    c == '\t' ||
+                    c >= 32) {
+
+                hasil.append(c);
+            }
+        }
+
+        return hasil.toString();
+    }
+
+    // ============================================================
+    // PECAH BARIS PRINTER
+    // ============================================================
+
+    private ArrayList<String> pecahBarisPrinter(
+            String teks,
+            int lebar) {
+
+        ArrayList<String> hasil =
+                new ArrayList<>();
+
+        if (teks == null) {
+
+            hasil.add("");
+
+            return hasil;
+        }
+
+        if (teks.isEmpty()) {
+
+            hasil.add("");
+
+            return hasil;
+        }
+
+        String sisa =
+                teks;
+
+        while (sisa.length() > lebar) {
+
+            int posisi =
+                    sisa.lastIndexOf(
+                            " ",
+                            lebar
+                    );
+
+            if (posisi <= 0) {
+
+                posisi =
+                        lebar;
+            }
+
+            String bagian =
+                    sisa.substring(
+                            0,
+                            posisi
+                    );
+
+            hasil.add(
+                    bagian
+            );
+
+            sisa =
+                    sisa.substring(
+                            posisi
+                    ).trim();
+        }
+
+        hasil.add(
+                sisa
+        );
+
+        return hasil;
     }
 
     // ============================================================
@@ -3852,7 +4341,7 @@ public class MainActivity extends Activity {
     }
 
     // ============================================================
-    // HAPUS DATA LOKAL LEBIH DARI 1 TAHUN
+    // HAPUS DATA LOKAL > 1 TAHUN
     // ============================================================
 
     private void bersihkanRiwayatLama() {
@@ -4028,6 +4517,7 @@ public class MainActivity extends Activity {
                         PackageManager.PERMISSION_GRANTED) {
 
                     semua = false;
+
                     break;
                 }
             }
@@ -4047,37 +4537,12 @@ public class MainActivity extends Activity {
     // PDF PRINT ADAPTER
     // ============================================================
 
-    /*
-     * PERBAIKAN UTAMA PRINT PDF
-     *
-     * Versi lama hanya membuat 1 halaman:
-     *
-     *     226 x 900
-     *
-     * kemudian berhenti ketika y > 880.
-     *
-     * Akibatnya nota panjang terpotong.
-     *
-     * Versi baru:
-     *
-     * 1. Membungkus baris yang terlalu panjang.
-     * 2. Menghitung jumlah halaman otomatis.
-     * 3. Membuat halaman 1, 2, 3, dst.
-     * 4. Semua isi nota tetap dicetak.
-     */
     private static class NotaPdfAdapter
             extends PrintDocumentAdapter {
 
         private final Context context;
         private final String teks;
 
-        /*
-         * Lebar 80 mm:
-         * 226 point kurang lebih 80 mm.
-         *
-         * Tinggi 300 mm:
-         * 850 point kurang lebih 300 mm.
-         */
         private static final int PAGE_WIDTH = 226;
         private static final int PAGE_HEIGHT = 850;
 
@@ -4100,10 +4565,6 @@ public class MainActivity extends Activity {
                             : teks;
         }
 
-        /*
-         * Membuat baris PDF yang tidak melebihi
-         * lebar kertas.
-         */
         private ArrayList<String> buatBarisPdf() {
 
             ArrayList<String> hasil =
@@ -4132,9 +4593,6 @@ public class MainActivity extends Activity {
             for (String line :
                     lines) {
 
-                /*
-                 * Baris kosong tetap dipertahankan.
-                 */
                 if (line.isEmpty()) {
 
                     hasil.add("");
@@ -4150,10 +4608,6 @@ public class MainActivity extends Activity {
                     int cut =
                             sisa.length();
 
-                    /*
-                     * Cari panjang teks yang masih
-                     * muat di kertas.
-                     */
                     while (cut > 1 &&
                             paint.measureText(
                                     sisa.substring(
@@ -4169,10 +4623,6 @@ public class MainActivity extends Activity {
                         cut = 1;
                     }
 
-                    /*
-                     * Jangan memotong pasangan surrogate
-                     * Unicode seperti emoji.
-                     */
                     if (cut < sisa.length() &&
                             cut > 0 &&
                             Character.isHighSurrogate(
@@ -4304,9 +4754,6 @@ public class MainActivity extends Activity {
                                 ) / linesPerPage
                         );
 
-                /*
-                 * Buat semua halaman.
-                 */
                 for (int pageNumber = 0;
                      pageNumber < pageCount;
                      pageNumber++) {
@@ -4418,7 +4865,7 @@ public class MainActivity extends Activity {
     }
 
     // ============================================================
-    // HELPER PROGRESS
+    // PROGRESS DIALOG
     // ============================================================
 
     private static class ProgressDialogHelper {
