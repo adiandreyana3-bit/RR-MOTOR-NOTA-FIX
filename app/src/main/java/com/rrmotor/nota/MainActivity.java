@@ -24,6 +24,7 @@ import android.text.InputType;
 import android.text.TextWatcher;
 import android.view.Gravity;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.*;
 
@@ -82,6 +83,15 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        // =====================================================
+        // SEMBUNYIKAN ACTIONBAR BAWAAN ANDROID
+        // Supaya "RR MOTOR NOTA" tidak menutupi input
+        // =====================================================
+
+        if (getActionBar() != null) {
+            getActionBar().hide();
+        }
+
         getWindow().setSoftInputMode(
                 WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
         );
@@ -100,7 +110,13 @@ public class MainActivity extends Activity {
         editingTimestamp = 0;
 
         scrollView = new ScrollView(this);
+
         scrollView.setFillViewport(true);
+
+        scrollView.setFocusable(true);
+        scrollView.setFocusableInTouchMode(true);
+
+        scrollView.setClipToPadding(false);
 
         LinearLayout utama =
                 new LinearLayout(this);
@@ -113,13 +129,13 @@ public class MainActivity extends Activity {
                 20,
                 8,
                 20,
-                30
+                40
         );
 
         scrollView.addView(utama);
 
         // =====================================================
-        // JUDUL KECIL AGAR INPUT NAMA DAN WA TERLIHAT
+        // JUDUL
         // =====================================================
 
         TextView judul =
@@ -129,7 +145,8 @@ public class MainActivity extends Activity {
                 "🏍️ RR MOTOR NOTA"
         );
 
-        judul.setTextSize(18);
+        // Lebih kecil agar tidak memenuhi layar
+        judul.setTextSize(17);
 
         judul.setTypeface(
                 null,
@@ -144,7 +161,7 @@ public class MainActivity extends Activity {
                 0,
                 2,
                 0,
-                5
+                6
         );
 
         utama.addView(judul);
@@ -267,9 +284,7 @@ public class MainActivity extends Activity {
                 v -> pilihTanggal()
         );
 
-        utama.addView(
-                tanggalInput
-        );
+        utama.addView(tanggalInput);
 
         // =====================================================
         // MOTOR
@@ -376,7 +391,7 @@ public class MainActivity extends Activity {
         );
 
         // =====================================================
-        // ITEM
+        // DAFTAR ITEM
         // =====================================================
 
         TextView judulItem =
@@ -426,9 +441,7 @@ public class MainActivity extends Activity {
                 v -> tambahBarisItem()
         );
 
-        utama.addView(
-                tambahItem
-        );
+        utama.addView(tambahItem);
 
         // =====================================================
         // TOTAL
@@ -451,9 +464,7 @@ public class MainActivity extends Activity {
                 2
         );
 
-        utama.addView(
-                totalText
-        );
+        utama.addView(totalText);
 
         sisaText =
                 new TextView(this);
@@ -465,9 +476,7 @@ public class MainActivity extends Activity {
                 Typeface.BOLD
         );
 
-        utama.addView(
-                sisaText
-        );
+        utama.addView(sisaText);
 
         statusText =
                 new TextView(this);
@@ -486,9 +495,7 @@ public class MainActivity extends Activity {
                 6
         );
 
-        utama.addView(
-                statusText
-        );
+        utama.addView(statusText);
 
         // =====================================================
         // SIMPAN
@@ -585,6 +592,10 @@ public class MainActivity extends Activity {
 
         utama.addView(whatsapp);
 
+        // =====================================================
+        // PASANG KE LAYAR
+        // =====================================================
+
         setContentView(scrollView);
 
         tanggalInput.setText(
@@ -649,7 +660,118 @@ public class MainActivity extends Activity {
 
         input.setLayoutParams(params);
 
+        // =====================================================
+        // Saat input disentuh, pastikan input terlihat
+        // =====================================================
+
+        input.setOnFocusChangeListener(
+                (v, hasFocus) -> {
+
+                    if (hasFocus) {
+
+                        v.postDelayed(
+                                () -> {
+
+                                    pastikanInputTerlihat(
+                                            v
+                                    );
+
+                                },
+                                200
+                        );
+                    }
+                }
+        );
+
+        input.setOnClickListener(
+                v -> {
+
+                    v.postDelayed(
+                            () -> {
+
+                                pastikanInputTerlihat(
+                                        v
+                                );
+
+                            },
+                            150
+                    );
+                }
+        );
+
         return input;
+    }
+
+    // =========================================================
+    // MEMASTIKAN INPUT TERLIHAT
+    // =========================================================
+
+    private void pastikanInputTerlihat(
+            View input) {
+
+        if (scrollView == null ||
+                input == null) {
+            return;
+        }
+
+        try {
+
+            RectHelper helper =
+                    new RectHelper();
+
+            android.graphics.Rect rect =
+                    new android.graphics.Rect();
+
+            input.getDrawingRect(rect);
+
+            scrollView.offsetDescendantRectToMyCoords(
+                    input,
+                    rect
+            );
+
+            int tinggiLayar =
+                    scrollView.getHeight();
+
+            int posisiAtas =
+                    rect.top;
+
+            int posisiBawah =
+                    rect.bottom;
+
+            int batasAtas = 20;
+
+            int batasBawah =
+                    tinggiLayar - 30;
+
+            if (posisiBawah > batasBawah) {
+
+                int selisih =
+                        posisiBawah -
+                                batasBawah;
+
+                scrollView.smoothScrollBy(
+                        0,
+                        selisih + 40
+                );
+
+            } else if (posisiAtas < batasAtas) {
+
+                int selisih =
+                        posisiAtas -
+                                batasAtas;
+
+                scrollView.smoothScrollBy(
+                        0,
+                        selisih - 40
+                );
+            }
+
+        } catch (Exception ignored) {
+        }
+    }
+
+    // Kelas kecil agar tidak ada perubahan fungsi lain
+    private static class RectHelper {
     }
 
     // =========================================================
@@ -2418,7 +2540,6 @@ public class MainActivity extends Activity {
 
     // =========================================================
     // TEKS NOTA CETAK
-    // FORMAT TIDAK DIUBAH
     // =========================================================
 
     private String buatTeksNota() {
@@ -3313,11 +3434,17 @@ public class MainActivity extends Activity {
     }
 
     // =========================================================
-    // KEYBOARD
+    // KEYBOARD + SCROLL
     // =========================================================
 
     private void tampilkanKeyboard(
             EditText input) {
+
+        if (input == null) {
+            return;
+        }
+
+        input.requestFocus();
 
         input.postDelayed(
                 () -> {
@@ -3337,18 +3464,21 @@ public class MainActivity extends Activity {
                         );
                     }
 
+                    pastikanInputTerlihat(
+                            input
+                    );
+
                     if (scrollView != null) {
 
                         scrollView.postDelayed(
                                 () -> {
 
-                                    scrollView.smoothScrollTo(
-                                            0,
-                                            input.getBottom()
+                                    pastikanInputTerlihat(
+                                            input
                                     );
 
                                 },
-                                200
+                                300
                         );
                     }
 
