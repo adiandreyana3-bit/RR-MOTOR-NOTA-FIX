@@ -19,6 +19,8 @@
 
     <application
         android:allowBackup="false"
+        android:icon="@drawable/icon_rr_motor"
+        android:roundIcon="@drawable/icon_rr_motor"
         android:label="RR MOTOR NOTA"
         android:supportsRtl="true"
         android:theme="@style/Theme.AppCompat.Light.NoActionBar">
