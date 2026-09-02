@@ -2,20 +2,14 @@
 
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- ===================================================== -->
-    <!-- BLUETOOTH ANDROID 11 KE BAWAH                         -->
-    <!-- ===================================================== -->
+    <!-- Internet untuk Firebase -->
+    <uses-permission android:name="android.permission.INTERNET" />
 
-    <uses-permission
-        android:name="android.permission.BLUETOOTH" />
+    <!-- Bluetooth Android 11 ke bawah -->
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
 
-    <uses-permission
-        android:name="android.permission.BLUETOOTH_ADMIN" />
-
-    <!-- ===================================================== -->
-    <!-- BLUETOOTH ANDROID 12+                                 -->
-    <!-- ===================================================== -->
-
+    <!-- Bluetooth Android 12+ -->
     <uses-permission
         android:name="android.permission.BLUETOOTH_CONNECT" />
 
@@ -23,33 +17,19 @@
         android:name="android.permission.BLUETOOTH_SCAN"
         android:usesPermissionFlags="neverForLocation" />
 
-    <!-- ===================================================== -->
-    <!-- APLIKASI                                               -->
-    <!-- ===================================================== -->
-
     <application
         android:allowBackup="false"
-        android:icon="@drawable/icon_rr_motor"
         android:label="RR MOTOR NOTA"
-        android:roundIcon="@drawable/icon_rr_motor"
-        android:supportsRtl="true">
-
-        <!-- ================================================= -->
-        <!-- MAIN ACTIVITY                                      -->
-        <!-- ================================================= -->
+        android:supportsRtl="true"
+        android:theme="@style/Theme.AppCompat.Light.NoActionBar">
 
         <activity
             android:name=".MainActivity"
             android:exported="true">
 
             <intent-filter>
-
-                <action
-                    android:name="android.intent.action.MAIN" />
-
-                <category
-                    android:name="android.intent.category.LAUNCHER" />
-
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
         </activity>
