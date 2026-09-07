@@ -86,12 +86,14 @@ public class MainActivity extends Activity {
     private static final String PREF_NAME = "RR_MOTOR_NOTA";
     private static final String KEY_HISTORY = "HISTORY";
 
-    private static final long SATU_TAHUN =
-            365L * 24L * 60L * 60L * 1000L;
+    private static final long TIGA_TAHUN =
+            3L * 365L * 24L * 60L * 60L * 1000L;
 
     private long editingTimestamp = 0;
 
     private String statusBayar = "BELUM LUNAS";
+
+    private EditText catatanInput;
 
     // Firebase
     private FirebaseAuth mAuth;
@@ -121,6 +123,7 @@ public class MainActivity extends Activity {
         } else {
             tampilkanMenuUtama();
             migrasiRiwayatLokalKeCloud();
+            bersihkanRiwayatFirebaseLama();
         }
     }
 
@@ -267,6 +270,7 @@ public class MainActivity extends Activity {
 
                             tampilkanMenuUtama();
                             migrasiRiwayatLokalKeCloud();
+                            bersihkanRiwayatFirebaseLama();
 
                         } else {
 
@@ -454,6 +458,17 @@ public class MainActivity extends Activity {
                 );
 
         root.addView(motorInput);
+
+        catatanInput =
+                buatInput(
+                        "Catatan (opsional)"
+                );
+
+        catatanInput.setSingleLine(false);
+        catatanInput.setMinLines(2);
+        catatanInput.setGravity(Gravity.TOP | Gravity.START);
+
+        root.addView(catatanInput);
 
         dpInput =
                 buatInput(
@@ -1531,6 +1546,13 @@ public class MainActivity extends Activity {
                         .trim()
         );
 
+        data.put(
+                "catatan",
+                catatanInput.getText()
+                        .toString()
+                        .trim()
+        );
+
         long dp =
                 hitungDP();
 
@@ -1688,6 +1710,12 @@ public class MainActivity extends Activity {
                 hitungDP() +
                 "|" +
                 encode(statusBayar) +
+                "|" +
+                encode(
+                        catatanInput.getText()
+                                .toString()
+                                .trim()
+                ) +
                 "|" +
                 itemData;
     }
@@ -1969,14 +1997,29 @@ public class MainActivity extends Activity {
                 decode(p[6])
         );
 
+        String catatan = "";
+        int posisiItems = 7;
+
+        // Format lama: p[7] = items
+        // Format baru: p[7] = catatan, p[8] = items
+        if (p.length >= 9) {
+            catatan = decode(p[7]);
+            posisiItems = 8;
+        }
+
+        hasil.put(
+                "catatan",
+                catatan
+        );
+
         ArrayList<Map<String, Object>> items =
                 new ArrayList<>();
 
-        if (p.length >= 8 &&
-                !p[7].isEmpty()) {
+        if (p.length > posisiItems &&
+                !p[posisiItems].isEmpty()) {
 
             String[] daftar =
-                    p[7].split(";");
+                    p[posisiItems].split(";");
 
             for (String itemData :
                     daftar) {
@@ -2110,7 +2153,7 @@ public class MainActivity extends Activity {
 
         long batas =
                 System.currentTimeMillis()
-                        - SATU_TAHUN;
+                        - TIGA_TAHUN;
 
         String uid =
                 user.getUid();
@@ -2179,6 +2222,38 @@ public class MainActivity extends Activity {
 
         root.addView(cari);
 
+        TextView filterLabel =
+                new TextView(this);
+
+        filterLabel.setText("Filter Status");
+        filterLabel.setTextSize(15);
+        filterLabel.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        filterLabel.setPadding(5, 10, 5, 5);
+        root.addView(filterLabel);
+
+        Spinner filterSpinner =
+                new Spinner(this);
+
+        String[] filterList = {
+                "SEMUA",
+                "BELUM LUNAS",
+                "LUNAS"
+        };
+
+        ArrayAdapter<String> filterAdapter =
+                new ArrayAdapter<>(
+                        this,
+                        android.R.layout.simple_spinner_item,
+                        filterList
+                );
+
+        filterAdapter.setDropDownViewResource(
+                android.R.layout.simple_spinner_dropdown_item
+        );
+
+        filterSpinner.setAdapter(filterAdapter);
+        root.addView(filterSpinner);
+
         LinearLayout daftarView =
                 new LinearLayout(this);
 
@@ -2240,6 +2315,24 @@ public class MainActivity extends Activity {
                                         "wa"
                                 );
 
+                        String status =
+                                getStringField(
+                                        doc,
+                                        "status"
+                                );
+
+                        String filter =
+                                filterSpinner.getSelectedItem() == null
+                                        ? "SEMUA"
+                                        : String.valueOf(
+                                                filterSpinner.getSelectedItem()
+                                        );
+
+                        if (!"SEMUA".equals(filter) &&
+                                !filter.equalsIgnoreCase(status)) {
+                            continue;
+                        }
+
                         if (!kata.isEmpty() &&
                                 !nama.toLowerCase(
                                         Locale.getDefault()
@@ -2286,6 +2379,25 @@ public class MainActivity extends Activity {
                         );
                     }
                 };
+
+        filterSpinner.setOnItemSelectedListener(
+                new android.widget.AdapterView.OnItemSelectedListener() {
+
+                    @Override
+                    public void onItemSelected(
+                            android.widget.AdapterView<?> parent,
+                            View view,
+                            int position,
+                            long id) {
+                        tampilkan.run();
+                    }
+
+                    @Override
+                    public void onNothingSelected(
+                            android.widget.AdapterView<?> parent) {
+                    }
+                }
+        );
 
         cari.addTextChangedListener(
                 new android.text.TextWatcher() {
@@ -2435,6 +2547,18 @@ public class MainActivity extends Activity {
 
             teks.append("🏍️ ")
                     .append(motor)
+                    .append("\n");
+        }
+
+        String catatan =
+                getStringField(
+                        doc,
+                        "catatan"
+                );
+
+        if (!catatan.isEmpty()) {
+            teks.append("📝 Catatan: ")
+                    .append(catatan)
                     .append("\n");
         }
 
@@ -2654,6 +2778,13 @@ public class MainActivity extends Activity {
                 getStringField(
                         doc,
                         "motor"
+                )
+        );
+
+        catatanInput.setText(
+                getStringField(
+                        doc,
+                        "catatan"
                 )
         );
 
@@ -3041,6 +3172,19 @@ public class MainActivity extends Activity {
                     .append("\n");
         }
 
+        String catatan =
+                catatanInput == null
+                        ? ""
+                        : catatanInput.getText()
+                                .toString()
+                                .trim();
+
+        if (!catatan.isEmpty()) {
+            teks.append("Catatan: ")
+                    .append(catatan)
+                    .append("\n");
+        }
+
         teks.append("\n");
 
         for (int i = 0;
@@ -3202,6 +3346,18 @@ public class MainActivity extends Activity {
 
             teks.append("Motor: ")
                     .append(motor)
+                    .append("\n");
+        }
+
+        String catatan =
+                getStringField(
+                        doc,
+                        "catatan"
+                );
+
+        if (!catatan.isEmpty()) {
+            teks.append("Catatan: ")
+                    .append(catatan)
                     .append("\n");
         }
 
@@ -4309,6 +4465,7 @@ public class MainActivity extends Activity {
         namaInput.setText("");
         waInput.setText("");
         motorInput.setText("");
+        catatanInput.setText("");
         dpInput.setText("");
 
         tanggalInput.setText(
@@ -4341,7 +4498,63 @@ public class MainActivity extends Activity {
     }
 
     // ============================================================
-    // HAPUS DATA LOKAL > 1 TAHUN
+    // HAPUS DATA FIREBASE LUNAS > 3 TAHUN
+    // ============================================================
+
+    private void bersihkanRiwayatFirebaseLama() {
+
+        FirebaseUser user =
+                mAuth.getCurrentUser();
+
+        if (user == null) {
+            return;
+        }
+
+        long batas =
+                System.currentTimeMillis()
+                        - TIGA_TAHUN;
+
+        db.collection("users")
+                .document(user.getUid())
+                .collection("notas")
+                .whereLessThan(
+                        "timestamp",
+                        batas
+                )
+                .get()
+                .addOnSuccessListener(
+                        snapshot -> {
+
+                            for (DocumentSnapshot doc :
+                                    snapshot.getDocuments()) {
+
+                                String status =
+                                        getStringField(
+                                                doc,
+                                                "status"
+                                        );
+
+                                if ("LUNAS".equalsIgnoreCase(
+                                        status.trim()
+                                )) {
+
+                                    doc.getReference()
+                                            .delete();
+
+                                    hapusNotaLokal(
+                                            getLongField(
+                                                    doc,
+                                                    "timestamp"
+                                            )
+                                    );
+                                }
+                            }
+                        }
+                );
+    }
+
+    // ============================================================
+    // HAPUS DATA LOKAL LUNAS > 3 TAHUN
     // ============================================================
 
     private void bersihkanRiwayatLama() {
@@ -4366,7 +4579,7 @@ public class MainActivity extends Activity {
 
         long batas =
                 System.currentTimeMillis()
-                        - SATU_TAHUN;
+                        - TIGA_TAHUN;
 
         StringBuilder hasil =
                 new StringBuilder();
@@ -4381,6 +4594,8 @@ public class MainActivity extends Activity {
                 continue;
             }
 
+            boolean hapus = false;
+
             try {
 
                 String[] p =
@@ -4394,11 +4609,22 @@ public class MainActivity extends Activity {
                                 p[0]
                         );
 
-                if (timestamp < batas) {
-                    continue;
-                }
+                String status =
+                        p.length > 6
+                                ? decode(p[6])
+                                : "BELUM LUNAS";
+
+                hapus = timestamp < batas &&
+                        "LUNAS".equalsIgnoreCase(
+                                status.trim()
+                        );
 
             } catch (Exception ignored) {
+                // Data rusak tetap dipertahankan agar tidak hilang.
+            }
+
+            if (hapus) {
+                continue;
             }
 
             if (hasil.length() > 0) {
