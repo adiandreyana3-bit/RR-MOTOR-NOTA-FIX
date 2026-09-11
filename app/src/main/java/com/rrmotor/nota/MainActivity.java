@@ -95,6 +95,10 @@ public class MainActivity extends Activity {
 
     private EditText catatanInput;
 
+    // Identitas bengkel yang tampil pada nota
+    private static final String KEY_WA_BENGKEL = "WA_BENGKEL";
+    private static final String KEY_ALAMAT_BENGKEL = "ALAMAT_BENGKEL";
+
     // Firebase
     private FirebaseAuth mAuth;
     private FirebaseFirestore db;
@@ -379,6 +383,13 @@ public class MainActivity extends Activity {
         );
 
         root.addView(judul);
+
+        Button bengkelButton = new Button(this);
+        bengkelButton.setText("🏪 IDENTITAS BENGKEL");
+        bengkelButton.setTextSize(16);
+        bengkelButton.setAllCaps(false);
+        root.addView(bengkelButton);
+        bengkelButton.setOnClickListener(v -> tampilkanIdentitasBengkel());
 
         namaInput =
                 buatInput(
@@ -833,6 +844,81 @@ public class MainActivity extends Activity {
         hitungTotal();
 
         setContentView(scrollView);
+    }
+
+    // ============================================================
+    // IDENTITAS BENGKEL
+    // ============================================================
+
+    private void tampilkanIdentitasBengkel() {
+
+        SharedPreferences pref =
+                getSharedPreferences(PREF_NAME, MODE_PRIVATE);
+
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(25, 10, 25, 5);
+
+        EditText waBengkel = buatInput("📱 Nomor WhatsApp Bengkel");
+        waBengkel.setText(pref.getString(KEY_WA_BENGKEL, ""));
+        waBengkel.setInputType(InputType.TYPE_CLASS_PHONE);
+        root.addView(waBengkel);
+
+        EditText alamatBengkel = buatInput("📍 Alamat Bengkel");
+        alamatBengkel.setText(pref.getString(KEY_ALAMAT_BENGKEL, ""));
+        alamatBengkel.setSingleLine(false);
+        alamatBengkel.setMinLines(2);
+        alamatBengkel.setGravity(Gravity.TOP | Gravity.START);
+        root.addView(alamatBengkel);
+
+        new AlertDialog.Builder(this)
+                .setTitle("🏪 IDENTITAS BENGKEL")
+                .setMessage("Data ini akan tampil pada nota, PDF, cetak Bluetooth, dan pesan WhatsApp.")
+                .setView(root)
+                .setNegativeButton("BATAL", null)
+                .setPositiveButton("SIMPAN", (dialog, which) -> {
+                    pref.edit()
+                            .putString(KEY_WA_BENGKEL,
+                                    waBengkel.getText().toString().trim())
+                            .putString(KEY_ALAMAT_BENGKEL,
+                                    alamatBengkel.getText().toString().trim())
+                            .apply();
+
+                    Toast.makeText(
+                            this,
+                            "Identitas bengkel tersimpan 👍",
+                            Toast.LENGTH_SHORT
+                    ).show();
+                })
+                .show();
+    }
+
+    private void tambahkanHeaderBengkel(StringBuilder teks) {
+
+        SharedPreferences pref =
+                getSharedPreferences(PREF_NAME, MODE_PRIVATE);
+
+        String waBengkel =
+                pref.getString(KEY_WA_BENGKEL, "").trim();
+
+        String alamatBengkel =
+                pref.getString(KEY_ALAMAT_BENGKEL, "").trim();
+
+        teks.append("🏍️ RR MOTOR\n");
+
+        if (!waBengkel.isEmpty()) {
+            teks.append("📱 WA Bengkel: ")
+                    .append(waBengkel)
+                    .append("\n");
+        }
+
+        if (!alamatBengkel.isEmpty()) {
+            teks.append("📍 ")
+                    .append(alamatBengkel)
+                    .append("\n");
+        }
+
+        teks.append("====================\n");
     }
 
     // ============================================================
@@ -3136,13 +3222,7 @@ public class MainActivity extends Activity {
         StringBuilder teks =
                 new StringBuilder();
 
-        teks.append(
-                "🏍️ RR MOTOR\n"
-        );
-
-        teks.append(
-                "====================\n"
-        );
+        tambahkanHeaderBengkel(teks);
 
         teks.append("Nama: ")
                 .append(
@@ -3326,13 +3406,7 @@ public class MainActivity extends Activity {
                         "status"
                 );
 
-        teks.append(
-                "🏍️ RR MOTOR\n"
-        );
-
-        teks.append(
-                "====================\n"
-        );
+        tambahkanHeaderBengkel(teks);
 
         teks.append("Nama: ")
                 .append(nama)
