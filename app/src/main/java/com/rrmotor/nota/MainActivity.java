@@ -3452,11 +3452,14 @@ public class MainActivity extends Activity {
 
             long jumlah = angka(jumlahBarang.get(i));
             long harga = angka(hargaBarang.get(i));
+            long subtotal = jumlah * harga;
 
-            teks.append(nomorItem++).append(". ").append(nama).append("\n");
-            teks.append("   ").append(jumlah).append(" x ")
-                    .append(formatRupiah(harga)).append(" = ")
-                    .append(formatRupiah(jumlah * harga)).append("\n");
+            // Dibuat bertingkat agar nomor urut dan jumlah/QTY tidak membingungkan.
+            teks.append(String.format(Locale.getDefault(), "%02d. %s\n", nomorItem++, nama));
+            teks.append("    QTY      : ").append(jumlah).append("\n");
+            teks.append("    HARGA    : ").append(formatRupiah(harga)).append("\n");
+            teks.append("    SUBTOTAL : ").append(formatRupiah(subtotal)).append("\n");
+            teks.append("\n");
         }
 
         long total = hitungTotalTanpaStatus();
@@ -3517,11 +3520,17 @@ public class MainActivity extends Activity {
         if (items != null) {
             for (Map<String, Object> item : items) {
                 String namaItem = item.get("nama") == null ? "" : String.valueOf(item.get("nama"));
+                if (namaItem.trim().isEmpty()) continue;
+
                 long jumlah = getMapLong(item, "jumlah");
                 long harga = getMapLong(item, "harga");
-                teks.append(nomorItem++).append(". ").append(namaItem).append("\n");
-                teks.append("   ").append(jumlah).append(" x ").append(formatRupiah(harga))
-                        .append(" = ").append(formatRupiah(jumlah * harga)).append("\n");
+                long subtotal = jumlah * harga;
+
+                teks.append(String.format(Locale.getDefault(), "%02d. %s\n", nomorItem++, namaItem));
+                teks.append("    QTY      : ").append(jumlah).append("\n");
+                teks.append("    HARGA    : ").append(formatRupiah(harga)).append("\n");
+                teks.append("    SUBTOTAL : ").append(formatRupiah(subtotal)).append("\n");
+                teks.append("\n");
             }
         }
 
