@@ -71,6 +71,7 @@ public class MainActivity extends Activity {
 
     private ContactSuggestionAdapter contactAdapter;
     private int contactSearchSerial = 0;
+    private String pendingContactSearch = "";
     private EditText tanggalInput;
     private EditText motorInput;
     private EditText dpInput;
@@ -1112,6 +1113,7 @@ public class MainActivity extends Activity {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
                 checkSelfPermission(Manifest.permission.READ_CONTACTS)
                         != PackageManager.PERMISSION_GRANTED) {
+            pendingContactSearch = teks;
             requestPermissions(
                     new String[]{Manifest.permission.READ_CONTACTS},
                     REQUEST_READ_CONTACTS
@@ -4746,7 +4748,14 @@ public class MainActivity extends Activity {
         if (requestCode == REQUEST_READ_CONTACTS &&
                 grantResults.length > 0 &&
                 grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            Toast.makeText(this, "Akses kontak aktif. Ketik minimal 4 digit.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Akses kontak aktif", Toast.LENGTH_SHORT).show();
+
+            String pencarian = pendingContactSearch;
+            pendingContactSearch = "";
+
+            if (pencarian != null && pencarian.replaceAll("\\D", "").length() >= 4) {
+                cariKontakSaatMengetik(pencarian);
+            }
             return;
         }
 
