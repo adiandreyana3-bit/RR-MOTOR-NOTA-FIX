@@ -1103,17 +1103,21 @@ public class MainActivity extends Activity {
 
     private void cariKontakSaatMengetik(String teks) {
 
-        final String angkaCari = teks.replaceAll("\\D", "");
+        final String angkaCari = normalisasiNomorKontakUntukPencarian(teks);
 
         if (angkaCari.length() < 4) {
-            if (waInput != null) waInput.dismissDropDown();
+            if (waInput != null) {
+                waInput.dismissDropDown();
+            }
             return;
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
                 checkSelfPermission(Manifest.permission.READ_CONTACTS)
                         != PackageManager.PERMISSION_GRANTED) {
+
             pendingContactSearch = teks;
+
             requestPermissions(
                     new String[]{Manifest.permission.READ_CONTACTS},
                     REQUEST_READ_CONTACTS
@@ -1125,6 +1129,7 @@ public class MainActivity extends Activity {
 
         new Thread(() -> {
             ArrayList<ContactSuggestion> hasil = new ArrayList<>();
+            java.util.HashSet<String> sudahAda = new java.util.HashSet<>();
             Cursor cursor = null;
 
             try {
@@ -1134,44 +1139,116 @@ public class MainActivity extends Activity {
                                 ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
                                 ContactsContract.CommonDataKinds.Phone.NUMBER
                         },
-                        null, null,
-                        ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME + " COLLATE NOCASE ASC"
+                        null,
+                        null,
+                        ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME +
+                                " COLLATE NOCASE ASC"
                 );
 
                 if (cursor != null) {
                     int nameIndex = cursor.getColumnIndex(
-                            ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME);
+                            ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME
+                    );
+
                     int numberIndex = cursor.getColumnIndex(
-                            ContactsContract.CommonDataKinds.Phone.NUMBER);
+                            ContactsContract.CommonDataKinds.Phone.NUMBER
+                    );
 
-                    while (cursor.moveToNext() && hasil.size() < 8) {
-                        String name = nameIndex >= 0 ? cursor.getString(nameIndex) : "";
-                        String number = numberIndex >= 0 ? cursor.getString(numberIndex) : "";
-                        String normalized = number == null ? "" : number.replaceAll("\\D", "");
+                    while (cursor.moveToNext() && hasil.size() < 10) {
 
-                        if (normalized.contains(angkaCari)) {
-                            hasil.add(new ContactSuggestion(
-                                    name == null || name.trim().isEmpty() ? "Tanpa Nama" : name.trim(),
-                                    number == null ? "" : number.trim()
-                            ));
+                        String name = nameIndex >= 0
+                                ? cursor.getString(nameIndex)
+                                : "";
+
+                        String number = numberIndex >= 0
+                                ? cursor.getString(numberIndex)
+                                : "";
+
+                        String nomorNormal =
+                                normalisasiNomorKontakUntukPencarian(number);
+
+                        if (nomorNormal.isEmpty()) {
+                            continue;
+                        }
+
+                        boolean cocok =
+                                nomorNormal.contains(angkaCari) ||
+                                nomorNormal.endsWith(angkaCari);
+
+                        if (cocok) {
+                            String namaTampil =
+                                    name == null || name.trim().isEmpty()
+                                            ? "Tanpa Nama"
+                                            : name.trim();
+
+                            String nomorTampil =
+                                    number == null
+                                            ? ""
+                                            : number.trim();
+
+                            String key = namaTampil + "|" + nomorNormal;
+
+                            if (sudahAda.add(key)) {
+                                hasil.add(
+                                        new ContactSuggestion(
+                                                namaTampil,
+                                                nomorTampil
+                                        )
+                                );
+                            }
                         }
                     }
                 }
-            } catch (Exception ignored) {
+
+            } catch (SecurityException e) {
+                // Izin kontak belum diberikan.
+            } catch (Exception e) {
+                // Jangan membuat aplikasi crash hanya karena data kontak bermasalah.
             } finally {
-                if (cursor != null) cursor.close();
+                if (cursor != null) {
+                    cursor.close();
+                }
             }
 
             runOnUiThread(() -> {
-                if (serial != contactSearchSerial || waInput == null) return;
+
+                if (serial != contactSearchSerial || waInput == null) {
+                    return;
+                }
+
                 contactAdapter.setData(hasil);
+
                 if (!hasil.isEmpty() && waInput.hasFocus()) {
+                    waInput.requestFocus();
                     waInput.showDropDown();
                 } else {
                     waInput.dismissDropDown();
                 }
             });
+
         }).start();
+    }
+
+    /**
+     * Menyamakan format nomor Indonesia agar:
+     * 081234567890
+     * +6281234567890
+     * 6281234567890
+     * tetap dianggap nomor yang sama.
+     */
+    private String normalisasiNomorKontakUntukPencarian(String nomor) {
+
+        if (nomor == null) {
+            return "";
+        }
+
+        String angka = nomor.replaceAll("\\D", "");
+
+        if (angka.startsWith("62") && angka.length() > 2) {
+            angka = "0" + angka.substring(2);
+        }
+
+        return angka;
     }
 
     private static class ContactSuggestion {
