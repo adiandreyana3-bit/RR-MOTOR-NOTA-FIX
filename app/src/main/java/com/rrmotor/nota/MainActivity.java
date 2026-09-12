@@ -3444,8 +3444,7 @@ public class MainActivity extends Activity {
         teks.append(garisTipis).append("\n");
         teks.append("ITEM / JASA\n");
         teks.append(garisTipis).append("\n");
-        teks.append("NO  BARANG / JASA       QTY   HARGA      JUMLAH\n");
-        teks.append(garisTipis).append("\n");
+        
 
         int nomorItem = 1;
         for (int i = 0; i < namaBarang.size(); i++) {
@@ -3499,29 +3498,40 @@ public class MainActivity extends Activity {
             long harga,
             long subtotal) {
 
-        String namaSingkat = nama == null ? "" : nama.trim();
+        String namaTampil = nama == null ? "" : nama.trim();
 
-        // Lebar nama dibuat tetap supaya tampilan tabel lebih rapi.
-        // Jika terlalu panjang, dipotong dan diberi "…".
-        final int LEBAR_NAMA = 19;
+        // Format 2 baris agar nota tidak melebar dan cocok untuk kertas kecil.
+        // Contoh:
+        // 1. Oli Mesin
+        //    Qty     Harga     Subtotal
+        //    1       15000     15000
+        StringBuilder baris = new StringBuilder();
 
-        if (namaSingkat.length() > LEBAR_NAMA) {
-            namaSingkat =
-                    namaSingkat.substring(0, LEBAR_NAMA - 1) + "…";
-        }
+        baris.append(nomor)
+                .append(". ")
+                .append(namaTampil)
+                .append("\n");
 
-        String hargaText = formatRupiah(harga);
-        String subtotalText = formatRupiah(subtotal);
+        baris.append("   Qty     Harga     Subtotal")
+                .append("\n");
 
+        baris.append(String.format(
+                Locale.getDefault(),
+                "   %-7s %-9s %-10s",
+                String.valueOf(jumlah),
+                formatRupiahTanpaRp(harga),
+                formatRupiahTanpaRp(subtotal)
+        ));
+
+        return baris.toString();
+    }
+
+    private String formatRupiahTanpaRp(long nilai) {
         return String.format(
                 Locale.getDefault(),
-                "%02d  %-19s %3d  %9s  %10s",
-                nomor,
-                namaSingkat,
-                jumlah,
-                hargaText,
-                subtotalText
-        );
+                "%,d",
+                nilai
+        ).replace(',', '.');
     }
 
     private String buatTeksNotaWhatsAppFirestore(DocumentSnapshot doc) {
@@ -3559,8 +3569,7 @@ public class MainActivity extends Activity {
         teks.append(garisTipis).append("\n");
         teks.append("ITEM / JASA\n");
         teks.append(garisTipis).append("\n");
-        teks.append("NO  BARANG / JASA       QTY   HARGA      JUMLAH\n");
-        teks.append(garisTipis).append("\n");
+        
 
         List<Map<String, Object>> items = (List<Map<String, Object>>) doc.get("items");
         int nomorItem = 1;
