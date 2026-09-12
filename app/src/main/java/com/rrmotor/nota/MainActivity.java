@@ -3444,6 +3444,8 @@ public class MainActivity extends Activity {
         teks.append(garisTipis).append("\n");
         teks.append("ITEM / JASA\n");
         teks.append(garisTipis).append("\n");
+        teks.append("NO  BARANG / JASA       QTY   HARGA      JUMLAH\n");
+        teks.append(garisTipis).append("\n");
 
         int nomorItem = 1;
         for (int i = 0; i < namaBarang.size(); i++) {
@@ -3454,12 +3456,14 @@ public class MainActivity extends Activity {
             long harga = angka(hargaBarang.get(i));
             long subtotal = jumlah * harga;
 
-            // Dibuat bertingkat agar nomor urut dan jumlah/QTY tidak membingungkan.
-            teks.append(String.format(Locale.getDefault(), "%02d. %s\n", nomorItem++, nama));
-            teks.append("    QTY      : ").append(jumlah).append("\n");
-            teks.append("    HARGA    : ").append(formatRupiah(harga)).append("\n");
-            teks.append("    SUBTOTAL : ").append(formatRupiah(subtotal)).append("\n");
-            teks.append("\n");
+            // Format horizontal agar nota lebih ringkas dan nomor/QTY jelas.
+            teks.append(formatBarisItemNota(
+                    nomorItem++,
+                    nama,
+                    jumlah,
+                    harga,
+                    subtotal
+            )).append("\n");
         }
 
         long total = hitungTotalTanpaStatus();
@@ -3477,6 +3481,47 @@ public class MainActivity extends Activity {
         teks.append(garis);
 
         return teks.toString();
+    }
+
+    /**
+     * Membuat satu baris tabel nota yang ringkas.
+     *
+     * Format:
+     * NO  BARANG / JASA       QTY   HARGA      JUMLAH
+     * 01  Oli Mesin             2   Rp15.000   Rp30.000
+     *
+     * Nama dibatasi agar kolom harga/jumlah tetap berada di sisi kanan.
+     */
+    private String formatBarisItemNota(
+            int nomor,
+            String nama,
+            long jumlah,
+            long harga,
+            long subtotal) {
+
+        String namaSingkat = nama == null ? "" : nama.trim();
+
+        // Lebar nama dibuat tetap supaya tampilan tabel lebih rapi.
+        // Jika terlalu panjang, dipotong dan diberi "…".
+        final int LEBAR_NAMA = 19;
+
+        if (namaSingkat.length() > LEBAR_NAMA) {
+            namaSingkat =
+                    namaSingkat.substring(0, LEBAR_NAMA - 1) + "…";
+        }
+
+        String hargaText = formatRupiah(harga);
+        String subtotalText = formatRupiah(subtotal);
+
+        return String.format(
+                Locale.getDefault(),
+                "%02d  %-19s %3d  %9s  %10s",
+                nomor,
+                namaSingkat,
+                jumlah,
+                hargaText,
+                subtotalText
+        );
     }
 
     private String buatTeksNotaWhatsAppFirestore(DocumentSnapshot doc) {
@@ -3514,6 +3559,8 @@ public class MainActivity extends Activity {
         teks.append(garisTipis).append("\n");
         teks.append("ITEM / JASA\n");
         teks.append(garisTipis).append("\n");
+        teks.append("NO  BARANG / JASA       QTY   HARGA      JUMLAH\n");
+        teks.append(garisTipis).append("\n");
 
         List<Map<String, Object>> items = (List<Map<String, Object>>) doc.get("items");
         int nomorItem = 1;
@@ -3526,11 +3573,13 @@ public class MainActivity extends Activity {
                 long harga = getMapLong(item, "harga");
                 long subtotal = jumlah * harga;
 
-                teks.append(String.format(Locale.getDefault(), "%02d. %s\n", nomorItem++, namaItem));
-                teks.append("    QTY      : ").append(jumlah).append("\n");
-                teks.append("    HARGA    : ").append(formatRupiah(harga)).append("\n");
-                teks.append("    SUBTOTAL : ").append(formatRupiah(subtotal)).append("\n");
-                teks.append("\n");
+                teks.append(formatBarisItemNota(
+                        nomorItem++,
+                        namaItem,
+                        jumlah,
+                        harga,
+                        subtotal
+                )).append("\n");
             }
         }
 
