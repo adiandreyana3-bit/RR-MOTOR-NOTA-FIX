@@ -31,6 +31,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.ArrayAdapter;
+import android.widget.AutoCompleteTextView;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -63,9 +64,13 @@ public class MainActivity extends Activity {
 
     private static final int REQUEST_BLUETOOTH = 1001;
     private static final int REQUEST_PILIH_KONTAK = 1002;
+    private static final int REQUEST_READ_CONTACTS = 1003;
 
     private EditText namaInput;
-    private EditText waInput;
+    private AutoCompleteTextView waInput;
+
+    private ContactSuggestionAdapter contactAdapter;
+    private int contactSearchSerial = 0;
     private EditText tanggalInput;
     private EditText motorInput;
     private EditText dpInput;
@@ -409,10 +414,42 @@ public class MainActivity extends Activity {
                 Gravity.CENTER_VERTICAL
         );
 
-        waInput =
-                buatInput(
-                        "Nomor WhatsApp *"
+        waInput = new AutoCompleteTextView(this);
+        waInput.setHint("Nomor WhatsApp * (ketik 4 digit)");
+        waInput.setTextSize(17);
+        waInput.setSingleLine(true);
+        waInput.setInputType(InputType.TYPE_CLASS_PHONE);
+        waInput.setPadding(20, 15, 20, 15);
+        waInput.setThreshold(4);
+        waInput.setDropDownVerticalOffset(5);
+
+        LinearLayout.LayoutParams waAutoParams =
+                new LinearLayout.LayoutParams(
+                        0,
+                        ViewGroup.LayoutParams.WRAP_CONTENT,
+                        1
                 );
+        waInput.setLayoutParams(waAutoParams);
+
+        contactAdapter = new ContactSuggestionAdapter(this);
+        waInput.setAdapter(contactAdapter);
+        waInput.setOnItemClickListener((parent, view, position, id) -> {
+            ContactSuggestion selected = contactAdapter.getItem(position);
+            if (selected != null) {
+                namaInput.setText(selected.name);
+                waInput.setText(selected.number);
+                waInput.setSelection(waInput.length());
+                waInput.dismissDropDown();
+            }
+        });
+
+        waInput.addTextChangedListener(new android.text.TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
+                cariKontakSaatMengetik(s == null ? "" : s.toString());
+            }
+            @Override public void afterTextChanged(Editable s) {}
+        });
 
         LinearLayout.LayoutParams waInputParams =
                 new LinearLayout.LayoutParams(
@@ -1041,92 +1078,183 @@ public class MainActivity extends Activity {
 
     private void pilihKontak() {
 
-        try {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+                checkSelfPermission(Manifest.permission.READ_CONTACTS)
+                        != PackageManager.PERMISSION_GRANTED) {
 
-            Intent intent =
-                    new Intent(
-                            Intent.ACTION_PICK,
-                            ContactsContract.CommonDataKinds.Phone.CONTENT_URI
-                    );
-
-            startActivityForResult(
-                    intent,
-                    REQUEST_PILIH_KONTAK
+            requestPermissions(
+                    new String[]{Manifest.permission.READ_CONTACTS},
+                    REQUEST_READ_CONTACTS
             );
+            return;
+        }
 
+        try {
+            Intent intent = new Intent(
+                    Intent.ACTION_PICK,
+                    ContactsContract.CommonDataKinds.Phone.CONTENT_URI
+            );
+            startActivityForResult(intent, REQUEST_PILIH_KONTAK);
         } catch (Exception e) {
+            Toast.makeText(this, "Kontak tidak tersedia", Toast.LENGTH_SHORT).show();
+        }
+    }
 
-            Toast.makeText(
-                    this,
-                    "Kontak tidak tersedia",
-                    Toast.LENGTH_SHORT
-            ).show();
+    private void cariKontakSaatMengetik(String teks) {
+
+        final String angkaCari = teks.replaceAll("\\D", "");
+
+        if (angkaCari.length() < 4) {
+            if (waInput != null) waInput.dismissDropDown();
+            return;
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+                checkSelfPermission(Manifest.permission.READ_CONTACTS)
+                        != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(
+                    new String[]{Manifest.permission.READ_CONTACTS},
+                    REQUEST_READ_CONTACTS
+            );
+            return;
+        }
+
+        final int serial = ++contactSearchSerial;
+
+        new Thread(() -> {
+            ArrayList<ContactSuggestion> hasil = new ArrayList<>();
+            Cursor cursor = null;
+
+            try {
+                cursor = getContentResolver().query(
+                        ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                        new String[]{
+                                ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
+                                ContactsContract.CommonDataKinds.Phone.NUMBER
+                        },
+                        null, null,
+                        ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME + " COLLATE NOCASE ASC"
+                );
+
+                if (cursor != null) {
+                    int nameIndex = cursor.getColumnIndex(
+                            ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME);
+                    int numberIndex = cursor.getColumnIndex(
+                            ContactsContract.CommonDataKinds.Phone.NUMBER);
+
+                    while (cursor.moveToNext() && hasil.size() < 8) {
+                        String name = nameIndex >= 0 ? cursor.getString(nameIndex) : "";
+                        String number = numberIndex >= 0 ? cursor.getString(numberIndex) : "";
+                        String normalized = number == null ? "" : number.replaceAll("\\D", "");
+
+                        if (normalized.contains(angkaCari)) {
+                            hasil.add(new ContactSuggestion(
+                                    name == null || name.trim().isEmpty() ? "Tanpa Nama" : name.trim(),
+                                    number == null ? "" : number.trim()
+                            ));
+                        }
+                    }
+                }
+            } catch (Exception ignored) {
+            } finally {
+                if (cursor != null) cursor.close();
+            }
+
+            runOnUiThread(() -> {
+                if (serial != contactSearchSerial || waInput == null) return;
+                contactAdapter.setData(hasil);
+                if (!hasil.isEmpty() && waInput.hasFocus()) {
+                    waInput.showDropDown();
+                } else {
+                    waInput.dismissDropDown();
+                }
+            });
+        }).start();
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+
+        if (requestCode == REQUEST_READ_CONTACTS &&
+                grantResults.length > 0 &&
+                grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            Toast.makeText(this, "Akses kontak aktif. Ketik minimal 4 digit.", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private static class ContactSuggestion {
+        final String name;
+        final String number;
+
+        ContactSuggestion(String name, String number) {
+            this.name = name;
+            this.number = number;
+        }
+    }
+
+    private static class ContactSuggestionAdapter extends ArrayAdapter<ContactSuggestion> {
+
+        private final ArrayList<ContactSuggestion> data = new ArrayList<>();
+
+        ContactSuggestionAdapter(Context context) {
+            super(context, android.R.layout.simple_dropdown_item_1line);
+        }
+
+        void setData(List<ContactSuggestion> hasil) {
+            data.clear();
+            data.addAll(hasil);
+            clear();
+            addAll(data);
+            notifyDataSetChanged();
+        }
+
+        @Override
+        public View getView(int position, View convertView, ViewGroup parent) {
+            TextView row = new TextView(getContext());
+            ContactSuggestion item = getItem(position);
+            row.setText("👤 " + item.name + "\n📱 " + item.number);
+            row.setTextSize(16);
+            row.setPadding(24, 18, 24, 18);
+            return row;
         }
     }
 
     @Override
-    protected void onActivityResult(
-            int requestCode,
-            int resultCode,
-            Intent data) {
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
 
-        super.onActivityResult(
-                requestCode,
-                resultCode,
-                data
-        );
+        super.onActivityResult(requestCode, resultCode, data);
 
-        if (requestCode ==
-                REQUEST_PILIH_KONTAK &&
-                resultCode == RESULT_OK &&
-                data != null &&
-                data.getData() != null) {
+        if (requestCode == REQUEST_PILIH_KONTAK &&
+                resultCode == RESULT_OK && data != null && data.getData() != null) {
 
-            Uri uri =
-                    data.getData();
-
+            Uri uri = data.getData();
             Cursor cursor = null;
 
             try {
+                cursor = getContentResolver().query(
+                        uri,
+                        new String[]{
+                                ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
+                                ContactsContract.CommonDataKinds.Phone.NUMBER
+                        },
+                        null, null, null
+                );
 
-                cursor =
-                        getContentResolver().query(
-                                uri,
-                                new String[]{
-                                        ContactsContract.CommonDataKinds.Phone.NUMBER
-                                },
-                                null,
-                                null,
-                                null
-                        );
+                if (cursor != null && cursor.moveToFirst()) {
+                    String nama = cursor.getString(0);
+                    String nomor = cursor.getString(1);
 
-                if (cursor != null &&
-                        cursor.moveToFirst()) {
-
-                    String nomor =
-                            cursor.getString(0);
-
+                    if (namaInput != null) namaInput.setText(nama);
                     if (waInput != null) {
-
-                        waInput.setText(
-                                nomor
-                        );
+                        waInput.setText(nomor);
+                        waInput.setSelection(waInput.length());
                     }
                 }
-
             } catch (Exception e) {
-
-                Toast.makeText(
-                        this,
-                        "Gagal mengambil nomor kontak",
-                        Toast.LENGTH_SHORT
-                ).show();
-
+                Toast.makeText(this, "Gagal mengambil kontak", Toast.LENGTH_SHORT).show();
             } finally {
-
-                if (cursor != null) {
-                    cursor.close();
-                }
+                if (cursor != null) cursor.close();
             }
         }
     }
@@ -3219,303 +3347,125 @@ public class MainActivity extends Activity {
 
     private String buatTeksNotaWhatsApp() {
 
-        StringBuilder teks =
-                new StringBuilder();
+        StringBuilder teks = new StringBuilder();
+        String garis = "================================";
+        String garisTipis = "--------------------------------";
 
-        tambahkanHeaderBengkel(teks);
+        SharedPreferences pref = getSharedPreferences(PREF_NAME, MODE_PRIVATE);
+        String alamat = pref.getString(KEY_ALAMAT_BENGKEL, "").trim();
+        String waBengkel = pref.getString(KEY_WA_BENGKEL, "").trim();
 
-        teks.append("Nama: ")
-                .append(
-                        namaInput.getText()
-                                .toString()
-                                .trim()
-                )
-                .append("\n");
+        teks.append(garis).append("\n");
+        teks.append("          🏍️ RR MOTOR\n");
+        if (!alamat.isEmpty()) teks.append(alamat).append("\n");
+        if (!waBengkel.isEmpty()) teks.append("📱 WA Bengkel: ").append(waBengkel).append("\n");
+        teks.append(garis).append("\n");
+        teks.append("             NOTA\n");
+        teks.append(garisTipis).append("\n");
 
-        teks.append("Tanggal: ")
-                .append(
-                        tanggalInput.getText()
-                                .toString()
-                                .trim()
-                )
-                .append("\n");
+        teks.append("Nama      : ").append(namaInput.getText().toString().trim()).append("\n");
+        teks.append("No. WA    : ").append(waInput.getText().toString().trim()).append("\n");
+        teks.append("Tanggal   : ").append(tanggalInput.getText().toString().trim()).append("\n");
 
-        String motor =
-                motorInput.getText()
-                        .toString()
-                        .trim();
+        String motor = motorInput.getText().toString().trim();
+        if (!motor.isEmpty()) teks.append("Motor     : ").append(motor).append("\n");
 
-        if (!motor.isEmpty()) {
+        String catatan = catatanInput == null ? "" : catatanInput.getText().toString().trim();
+        if (!catatan.isEmpty()) teks.append("Catatan   : ").append(catatan).append("\n");
 
-            teks.append("Motor: ")
-                    .append(motor)
-                    .append("\n");
+        teks.append(garisTipis).append("\n");
+        teks.append("ITEM / JASA\n");
+        teks.append(garisTipis).append("\n");
+
+        int nomorItem = 1;
+        for (int i = 0; i < namaBarang.size(); i++) {
+            String nama = namaBarang.get(i).getText().toString().trim();
+            if (nama.isEmpty()) continue;
+
+            long jumlah = angka(jumlahBarang.get(i));
+            long harga = angka(hargaBarang.get(i));
+
+            teks.append(nomorItem++).append(". ").append(nama).append("\n");
+            teks.append("   ").append(jumlah).append(" x ")
+                    .append(formatRupiah(harga)).append(" = ")
+                    .append(formatRupiah(jumlah * harga)).append("\n");
         }
 
-        String catatan =
-                catatanInput == null
-                        ? ""
-                        : catatanInput.getText()
-                                .toString()
-                                .trim();
+        long total = hitungTotalTanpaStatus();
+        long dp = hitungDP();
+        long sisa = Math.max(0, total - dp);
 
-        if (!catatan.isEmpty()) {
-            teks.append("Catatan: ")
-                    .append(catatan)
-                    .append("\n");
-        }
-
-        teks.append("\n");
-
-        for (int i = 0;
-             i < namaBarang.size();
-             i++) {
-
-            String nama =
-                    namaBarang.get(i)
-                            .getText()
-                            .toString()
-                            .trim();
-
-            if (nama.isEmpty()) {
-                continue;
-            }
-
-            long jumlah =
-                    angka(
-                            jumlahBarang.get(i)
-                    );
-
-            long harga =
-                    angka(
-                            hargaBarang.get(i)
-                    );
-
-            teks.append(nama)
-                    .append("\n");
-
-            teks.append(jumlah)
-                    .append(" x ")
-                    .append(
-                            formatRupiah(harga)
-                    )
-                    .append(" = ")
-                    .append(
-                            formatRupiah(
-                                    jumlah * harga
-                            )
-                    )
-                    .append("\n");
-        }
-
-        long total =
-                hitungTotalTanpaStatus();
-
-        long dp =
-                hitungDP();
-
-        long sisa =
-                total - dp;
-
-        if (sisa < 0) {
-            sisa = 0;
-        }
-
-        teks.append("\n");
-
-        teks.append("TOTAL: ")
-                .append(
-                        formatRupiah(total)
-                )
-                .append("\n");
-
-        teks.append("DP: ")
-                .append(
-                        formatRupiah(dp)
-                )
-                .append("\n");
-
-        teks.append("SISA: ")
-                .append(
-                        formatRupiah(sisa)
-                )
-                .append("\n");
-
-        teks.append("STATUS: ")
-                .append(statusBayar)
-                .append("\n");
-
-        teks.append("\n");
-
-        teks.append(
-                "Terima kasih 🙏\n"
-        );
-
-        teks.append(
-                "RR MOTOR"
-        );
+        teks.append(garisTipis).append("\n");
+        teks.append("TOTAL     : ").append(formatRupiah(total)).append("\n");
+        teks.append("DP        : ").append(formatRupiah(dp)).append("\n");
+        teks.append("SISA      : ").append(formatRupiah(sisa)).append("\n");
+        teks.append("STATUS    : ").append(statusBayar).append("\n");
+        teks.append(garis).append("\n");
+        teks.append("       Terima kasih 🙏\n");
+        teks.append("          RR MOTOR\n");
+        teks.append(garis);
 
         return teks.toString();
     }
 
-    private String buatTeksNotaWhatsAppFirestore(
-            DocumentSnapshot doc) {
+    private String buatTeksNotaWhatsAppFirestore(DocumentSnapshot doc) {
 
-        StringBuilder teks =
-                new StringBuilder();
+        StringBuilder teks = new StringBuilder();
+        String garis = "================================";
+        String garisTipis = "--------------------------------";
 
-        String nama =
-                getStringField(
-                        doc,
-                        "nama"
-                );
+        String nama = getStringField(doc, "nama");
+        String wa = getStringField(doc, "wa");
+        String tanggal = getStringField(doc, "tanggal");
+        String motor = getStringField(doc, "motor");
+        String catatan = getStringField(doc, "catatan");
+        long total = getLongField(doc, "total");
+        long dp = getLongField(doc, "dp");
+        long sisa = getLongField(doc, "sisa");
+        String status = getStringField(doc, "status");
 
-        String tanggal =
-                getStringField(
-                        doc,
-                        "tanggal"
-                );
+        SharedPreferences pref = getSharedPreferences(PREF_NAME, MODE_PRIVATE);
+        String alamat = pref.getString(KEY_ALAMAT_BENGKEL, "").trim();
+        String waBengkel = pref.getString(KEY_WA_BENGKEL, "").trim();
 
-        String motor =
-                getStringField(
-                        doc,
-                        "motor"
-                );
+        teks.append(garis).append("\n");
+        teks.append("          🏍️ RR MOTOR\n");
+        if (!alamat.isEmpty()) teks.append(alamat).append("\n");
+        if (!waBengkel.isEmpty()) teks.append("📱 WA Bengkel: ").append(waBengkel).append("\n");
+        teks.append(garis).append("\n");
+        teks.append("             NOTA\n");
+        teks.append(garisTipis).append("\n");
+        teks.append("Nama      : ").append(nama).append("\n");
+        teks.append("No. WA    : ").append(wa).append("\n");
+        teks.append("Tanggal   : ").append(tanggal).append("\n");
+        if (!motor.isEmpty()) teks.append("Motor     : ").append(motor).append("\n");
+        if (!catatan.isEmpty()) teks.append("Catatan   : ").append(catatan).append("\n");
+        teks.append(garisTipis).append("\n");
+        teks.append("ITEM / JASA\n");
+        teks.append(garisTipis).append("\n");
 
-        long total =
-                getLongField(
-                        doc,
-                        "total"
-                );
-
-        long dp =
-                getLongField(
-                        doc,
-                        "dp"
-                );
-
-        long sisa =
-                getLongField(
-                        doc,
-                        "sisa"
-                );
-
-        String status =
-                getStringField(
-                        doc,
-                        "status"
-                );
-
-        tambahkanHeaderBengkel(teks);
-
-        teks.append("Nama: ")
-                .append(nama)
-                .append("\n");
-
-        teks.append("Tanggal: ")
-                .append(tanggal)
-                .append("\n");
-
-        if (!motor.isEmpty()) {
-
-            teks.append("Motor: ")
-                    .append(motor)
-                    .append("\n");
-        }
-
-        String catatan =
-                getStringField(
-                        doc,
-                        "catatan"
-                );
-
-        if (!catatan.isEmpty()) {
-            teks.append("Catatan: ")
-                    .append(catatan)
-                    .append("\n");
-        }
-
-        teks.append("\n");
-
-        List<Map<String, Object>> items =
-                (List<Map<String, Object>>)
-                        doc.get("items");
-
+        List<Map<String, Object>> items = (List<Map<String, Object>>) doc.get("items");
+        int nomorItem = 1;
         if (items != null) {
-
-            for (Map<String, Object> item :
-                    items) {
-
-                String namaItem =
-                        item.get("nama") == null
-                                ? ""
-                                : String.valueOf(
-                                        item.get("nama")
-                                );
-
-                long jumlah =
-                        getMapLong(
-                                item,
-                                "jumlah"
-                        );
-
-                long harga =
-                        getMapLong(
-                                item,
-                                "harga"
-                        );
-
-                teks.append(namaItem)
-                        .append("\n");
-
-                teks.append(jumlah)
-                        .append(" x ")
-                        .append(
-                                formatRupiah(harga)
-                        )
-                        .append(" = ")
-                        .append(
-                                formatRupiah(
-                                        jumlah * harga
-                                )
-                        )
-                        .append("\n");
+            for (Map<String, Object> item : items) {
+                String namaItem = item.get("nama") == null ? "" : String.valueOf(item.get("nama"));
+                long jumlah = getMapLong(item, "jumlah");
+                long harga = getMapLong(item, "harga");
+                teks.append(nomorItem++).append(". ").append(namaItem).append("\n");
+                teks.append("   ").append(jumlah).append(" x ").append(formatRupiah(harga))
+                        .append(" = ").append(formatRupiah(jumlah * harga)).append("\n");
             }
         }
 
-        teks.append("\n");
-
-        teks.append("TOTAL: ")
-                .append(
-                        formatRupiah(total)
-                )
-                .append("\n");
-
-        teks.append("DP: ")
-                .append(
-                        formatRupiah(dp)
-                )
-                .append("\n");
-
-        teks.append("SISA: ")
-                .append(
-                        formatRupiah(sisa)
-                )
-                .append("\n");
-
-        teks.append("STATUS: ")
-                .append(status)
-                .append("\n");
-
-        teks.append("\n");
-
-        teks.append(
-                "Terima kasih 🙏\n"
-        );
-
-        teks.append(
-                "RR MOTOR"
-        );
+        teks.append(garisTipis).append("\n");
+        teks.append("TOTAL     : ").append(formatRupiah(total)).append("\n");
+        teks.append("DP        : ").append(formatRupiah(dp)).append("\n");
+        teks.append("SISA      : ").append(formatRupiah(sisa)).append("\n");
+        teks.append("STATUS    : ").append(status).append("\n");
+        teks.append(garis).append("\n");
+        teks.append("       Terima kasih 🙏\n");
+        teks.append("          RR MOTOR\n");
+        teks.append(garis);
 
         return teks.toString();
     }
