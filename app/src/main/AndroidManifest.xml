@@ -5,6 +5,9 @@
     <!-- Internet untuk Firebase -->
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- Baca kontak untuk pencarian otomatis nomor WhatsApp -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+
     <!-- Bluetooth Android 11 ke bawah -->
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
