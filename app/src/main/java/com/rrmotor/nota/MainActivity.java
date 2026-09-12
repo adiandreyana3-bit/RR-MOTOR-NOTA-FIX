@@ -1172,17 +1172,6 @@ public class MainActivity extends Activity {
         }).start();
     }
 
-    @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-
-        if (requestCode == REQUEST_READ_CONTACTS &&
-                grantResults.length > 0 &&
-                grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            Toast.makeText(this, "Akses kontak aktif. Ketik minimal 4 digit.", Toast.LENGTH_SHORT).show();
-        }
-    }
-
     private static class ContactSuggestion {
         final String name;
         final String number;
@@ -4753,6 +4742,13 @@ public class MainActivity extends Activity {
                 permissions,
                 grantResults
         );
+
+        if (requestCode == REQUEST_READ_CONTACTS &&
+                grantResults.length > 0 &&
+                grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            Toast.makeText(this, "Akses kontak aktif. Ketik minimal 4 digit.", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
         if (requestCode ==
                 REQUEST_BLUETOOTH) {
