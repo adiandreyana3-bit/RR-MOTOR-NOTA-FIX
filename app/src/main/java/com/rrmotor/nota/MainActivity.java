@@ -3484,6 +3484,49 @@ public class MainActivity extends Activity {
     }
 
     /**
+     * Memecah nama item panjang agar turun ke baris berikutnya tanpa dipotong.
+     */
+    private String[] pecahNamaItem(String nama, int lebarMaks) {
+        if (nama == null) return new String[]{""};
+        nama = nama.trim();
+        if (nama.isEmpty() || lebarMaks <= 0) return new String[]{nama};
+
+        ArrayList<String> hasil = new ArrayList<>();
+        StringBuilder baris = new StringBuilder();
+
+        for (String kata : nama.split("\\s+")) {
+            if (baris.length() == 0) {
+                while (kata.length() > lebarMaks) {
+                    hasil.add(kata.substring(0, lebarMaks));
+                    kata = kata.substring(lebarMaks);
+                }
+                baris.append(kata);
+            } else if (baris.length() + 1 + kata.length() <= lebarMaks) {
+                baris.append(" ").append(kata);
+            } else {
+                hasil.add(baris.toString());
+                baris.setLength(0);
+                while (kata.length() > lebarMaks) {
+                    hasil.add(kata.substring(0, lebarMaks));
+                    kata = kata.substring(lebarMaks);
+                }
+                baris.append(kata);
+            }
+        }
+
+        if (baris.length() > 0) hasil.add(baris.toString());
+        return hasil.toArray(new String[0]);
+    }
+
+    /** Format angka untuk kolom nota kecil, tanpa tulisan Rp. */
+    private String formatRupiahTanpaRp(long angka) {
+        NumberFormat nf = NumberFormat.getNumberInstance(new Locale("id", "ID"));
+        nf.setMaximumFractionDigits(0);
+        nf.setMinimumFractionDigits(0);
+        return nf.format(angka);
+    }
+
+    /**
      * Format item seperti nota manual agar hemat tempat.
      * Nama item yang panjang otomatis turun ke baris berikutnya.
      */
