@@ -3444,7 +3444,8 @@ public class MainActivity extends Activity {
         teks.append(garisTipis).append("\n");
         teks.append("ITEM / JASA\n");
         teks.append(garisTipis).append("\n");
-        
+        teks.append(String.format(Locale.getDefault(), "%-4s %-18s %7s %8s", "Qty", "Item", "Harga", "Subtotal")).append("\n");
+        teks.append(garisTipis).append("\n");
 
         int nomorItem = 1;
         for (int i = 0; i < namaBarang.size(); i++) {
@@ -3483,13 +3484,8 @@ public class MainActivity extends Activity {
     }
 
     /**
-     * Membuat satu baris tabel nota yang ringkas.
-     *
-     * Format:
-     * NO  BARANG / JASA       QTY   HARGA      JUMLAH
-     * 01  Oli Mesin             2   Rp15.000   Rp30.000
-     *
-     * Nama dibatasi agar kolom harga/jumlah tetap berada di sisi kanan.
+     * Format item seperti nota manual agar hemat tempat.
+     * Nama item yang panjang otomatis turun ke baris berikutnya.
      */
     private String formatBarisItemNota(
             int nomor,
@@ -3498,40 +3494,45 @@ public class MainActivity extends Activity {
             long harga,
             long subtotal) {
 
-        String namaTampil = nama == null ? "" : nama.trim();
+        // Format khusus kertas nota kecil:
+        // Qty | Item | Harga | Subtotal
+        // Nama panjang otomatis turun ke baris berikutnya.
+        final int LEBAR_NAMA = 18;
+        String namaTampil = nama == null ? "" :
+                nama.trim().replaceAll("\\s+", " ");
 
-        // Format 2 baris agar nota tidak melebar dan cocok untuk kertas kecil.
-        // Contoh:
-        // 1. Oli Mesin
-        //    Qty     Harga     Subtotal
-        //    1       15000     15000
         StringBuilder baris = new StringBuilder();
+        String garisItem = "--------------------------------";
 
-        baris.append(nomor)
-                .append(". ")
-                .append(namaTampil)
-                .append("\n");
+        String[] bagianNama = pecahNamaItem(namaTampil, LEBAR_NAMA);
+        if (bagianNama.length == 0) {
+            bagianNama = new String[]{""};
+        }
 
-        baris.append("   Qty     Harga     Subtotal")
-                .append("\n");
-
+        // Baris utama: Qty, nama, harga, subtotal.
         baris.append(String.format(
                 Locale.getDefault(),
-                "   %-7s %-9s %-10s",
+                "%-4s %-18s %7s %8s",
                 String.valueOf(jumlah),
+                bagianNama[0],
                 formatRupiahTanpaRp(harga),
                 formatRupiahTanpaRp(subtotal)
-        ));
+        )).append("\n");
+
+        // Nama panjang dilanjutkan di bawah tanpa mengulang angka/harga.
+        for (int i = 1; i < bagianNama.length; i++) {
+            baris.append(String.format(
+                    Locale.getDefault(),
+                    "%-4s %s",
+                    "",
+                    bagianNama[i]
+            )).append("\n");
+        }
+
+        // Garis batas setiap item.
+        baris.append(garisItem);
 
         return baris.toString();
-    }
-
-    private String formatRupiahTanpaRp(long nilai) {
-        return String.format(
-                Locale.getDefault(),
-                "%,d",
-                nilai
-        ).replace(',', '.');
     }
 
     private String buatTeksNotaWhatsAppFirestore(DocumentSnapshot doc) {
@@ -3569,7 +3570,8 @@ public class MainActivity extends Activity {
         teks.append(garisTipis).append("\n");
         teks.append("ITEM / JASA\n");
         teks.append(garisTipis).append("\n");
-        
+        teks.append(String.format(Locale.getDefault(), "%-4s %-18s %7s %8s", "Qty", "Item", "Harga", "Subtotal")).append("\n");
+        teks.append(garisTipis).append("\n");
 
         List<Map<String, Object>> items = (List<Map<String, Object>>) doc.get("items");
         int nomorItem = 1;
@@ -4945,12 +4947,12 @@ public class MainActivity extends Activity {
         private static final int PAGE_WIDTH = 226;
         private static final int PAGE_HEIGHT = 850;
 
-        private static final int LEFT_MARGIN = 5;
-        private static final int RIGHT_MARGIN = 5;
+        private static final int LEFT_MARGIN = 3;
+        private static final int RIGHT_MARGIN = 3;
         private static final int TOP_MARGIN = 15;
         private static final int BOTTOM_MARGIN = 15;
 
-        private static final int LINE_HEIGHT = 11;
+        private static final int LINE_HEIGHT = 9;
 
         NotaPdfAdapter(
                 Context context,
@@ -4972,7 +4974,7 @@ public class MainActivity extends Activity {
             android.graphics.Paint paint =
                     new android.graphics.Paint();
 
-            paint.setTextSize(8);
+            paint.setTextSize(7);
 
             paint.setTypeface(
                     Typeface.MONOSPACE
@@ -5182,7 +5184,7 @@ public class MainActivity extends Activity {
                     android.graphics.Paint paint =
                             new android.graphics.Paint();
 
-                    paint.setTextSize(8);
+                    paint.setTextSize(7);
 
                     paint.setTypeface(
                             Typeface.MONOSPACE
