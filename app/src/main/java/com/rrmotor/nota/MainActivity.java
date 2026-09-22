@@ -3778,7 +3778,7 @@ public class MainActivity extends Activity {
                 ),
                 new PrintAttributes.Builder()
                         .setMediaSize(
-                                ukuran80mm
+                                ukuran50mm
                         )
                         .setMinMargins(
                                 PrintAttributes.Margins.NO_MARGINS
