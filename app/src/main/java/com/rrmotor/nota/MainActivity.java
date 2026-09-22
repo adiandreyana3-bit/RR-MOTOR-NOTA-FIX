@@ -74,6 +74,7 @@ public class MainActivity extends Activity {
     private String pendingContactSearch = "";
     private EditText tanggalInput;
     private EditText motorInput;
+    private EditText nopolInput;
     private EditText dpInput;
 
     private Spinner statusSpinner;
@@ -507,6 +508,17 @@ public class MainActivity extends Activity {
                 );
 
         root.addView(motorInput);
+
+        nopolInput =
+                buatInput(
+                        "Plat Nomor / Nopol (opsional)"
+                );
+
+        nopolInput.setSingleLine(true);
+        nopolInput.setInputType(android.text.InputType.TYPE_CLASS_TEXT |
+                android.text.InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS);
+
+        root.addView(nopolInput);
 
         catatanInput =
                 buatInput(
@@ -1829,6 +1841,14 @@ public class MainActivity extends Activity {
         );
 
         data.put(
+                "nopol",
+                nopolInput.getText()
+                        .toString()
+                        .trim()
+                        .toUpperCase(Locale.getDefault())
+        );
+
+        data.put(
                 "catatan",
                 catatanInput.getText()
                         .toString()
@@ -2499,7 +2519,7 @@ public class MainActivity extends Activity {
 
         EditText cari =
                 buatInput(
-                        "🔎 Cari nama / nomor WhatsApp"
+                        "🔎 Cari nama / plat nomor / WhatsApp"
                 );
 
         root.addView(cari);
@@ -2597,6 +2617,12 @@ public class MainActivity extends Activity {
                                         "wa"
                                 );
 
+                        String nopol =
+                                getStringField(
+                                        doc,
+                                        "nopol"
+                                );
+
                         String status =
                                 getStringField(
                                         doc,
@@ -2620,6 +2646,9 @@ public class MainActivity extends Activity {
                                         Locale.getDefault()
                                 ).contains(kata) &&
                                 !wa.toLowerCase(
+                                        Locale.getDefault()
+                                ).contains(kata) &&
+                                !nopol.toLowerCase(
                                         Locale.getDefault()
                                 ).contains(kata)) {
 
@@ -2829,6 +2858,19 @@ public class MainActivity extends Activity {
 
             teks.append("🏍️ ")
                     .append(motor)
+                    .append("\n");
+        }
+
+        String nopol =
+                getStringField(
+                        doc,
+                        "nopol"
+                );
+
+        if (!nopol.isEmpty()) {
+
+            teks.append("🔖 ")
+                    .append(nopol)
                     .append("\n");
         }
 
@@ -3060,6 +3102,13 @@ public class MainActivity extends Activity {
                 getStringField(
                         doc,
                         "motor"
+                )
+        );
+
+        nopolInput.setText(
+                getStringField(
+                        doc,
+                        "nopol"
                 )
         );
 
@@ -3443,9 +3492,9 @@ public class MainActivity extends Activity {
 
         teks.append(garisTipis).append("\n");
         teks.append("ITEM / JASA\n");
-        teks.append(garisTipis).append("\n");
-        teks.append(String.format(Locale.getDefault(), "%-4s %-18s %7s %8s", "Qty", "Item", "Harga", "Subtotal")).append("\n");
-        teks.append(garisTipis).append("\n");
+        teks.append(garisTipis50()).append("\n");
+        teks.append(formatHeaderItemNota()).append("\n");
+        teks.append(garisTipis50()).append("\n");
 
         int nomorItem = 1;
         for (int i = 0; i < namaBarang.size(); i++) {
@@ -3530,6 +3579,56 @@ public class MainActivity extends Activity {
      * Format item seperti nota manual agar hemat tempat.
      * Nama item yang panjang otomatis turun ke baris berikutnya.
      */
+    // ============================================================
+    // FORMAT NOTA 50 MM
+    // ============================================================
+    // Total lebar teks dibuat 32 karakter agar aman untuk kertas 50 mm.
+    // QTY + JASA/PART + HARGA + TOTAL selalu sejajar.
+    private static final int LEBAR_NOTA_50MM = 32;
+    private static final int LEBAR_QTY = 3;
+    private static final int LEBAR_HARGA = 7;
+    private static final int LEBAR_TOTAL = 8;
+    private static final int SPASI_KOLOM = 1;
+
+    private int lebarNamaNota50mm() {
+        return LEBAR_NOTA_50MM
+                - LEBAR_QTY
+                - LEBAR_HARGA
+                - LEBAR_TOTAL
+                - (SPASI_KOLOM * 3);
+    }
+
+    private String garisTipis50() {
+        return repeatKarakter('-', LEBAR_NOTA_50MM);
+    }
+
+    private String repeatKarakter(char karakter, int jumlah) {
+        StringBuilder s = new StringBuilder();
+        for (int i = 0; i < jumlah; i++) {
+            s.append(karakter);
+        }
+        return s.toString();
+    }
+
+    private String formatHeaderItemNota() {
+        int lebarNama = lebarNamaNota50mm();
+
+        return String.format(
+                Locale.getDefault(),
+                "%-" + LEBAR_QTY + "s %-" + lebarNama + "s %" +
+                        LEBAR_HARGA + "s %" + LEBAR_TOTAL + "s",
+                "QTY",
+                "JASA/PART",
+                "HARGA",
+                "TOTAL"
+        );
+    }
+
+    /**
+     * Format item untuk nota 50 mm.
+     * TOTAL selalu berada di kolom paling kanan.
+     * Nama panjang turun tepat di bawah kolom JASA/PART.
+     */
     private String formatBarisItemNota(
             int nomor,
             String nama,
@@ -3537,44 +3636,38 @@ public class MainActivity extends Activity {
             long harga,
             long subtotal) {
 
-        // Format khusus kertas nota kecil:
-        // Qty | Item | Harga | Subtotal
-        // Nama panjang otomatis turun ke baris berikutnya.
-        final int LEBAR_NAMA = 18;
+        int lebarNama = lebarNamaNota50mm();
+
         String namaTampil = nama == null ? "" :
                 nama.trim().replaceAll("\\s+", " ");
 
-        StringBuilder baris = new StringBuilder();
-        String garisItem = "--------------------------------";
-
-        String[] bagianNama = pecahNamaItem(namaTampil, LEBAR_NAMA);
+        String[] bagianNama = pecahNamaItem(namaTampil, lebarNama);
         if (bagianNama.length == 0) {
             bagianNama = new String[]{""};
         }
 
-        // Baris utama: Qty, nama, harga, subtotal.
+        StringBuilder baris = new StringBuilder();
+
         baris.append(String.format(
                 Locale.getDefault(),
-                "%-4s %-18s %7s %8s",
+                "%-" + LEBAR_QTY + "s %-" + lebarNama + "s %" +
+                        LEBAR_HARGA + "s %" + LEBAR_TOTAL + "s",
                 String.valueOf(jumlah),
                 bagianNama[0],
                 formatRupiahTanpaRp(harga),
                 formatRupiahTanpaRp(subtotal)
         )).append("\n");
 
-        // Nama panjang dilanjutkan di bawah tanpa mengulang angka/harga.
         for (int i = 1; i < bagianNama.length; i++) {
             baris.append(String.format(
                     Locale.getDefault(),
-                    "%-4s %s",
+                    "%-" + LEBAR_QTY + "s %-" + lebarNama + "s",
                     "",
                     bagianNama[i]
             )).append("\n");
         }
 
-        // Garis batas setiap item.
-        baris.append(garisItem);
-
+        baris.append(garisTipis50());
         return baris.toString();
     }
 
@@ -3612,9 +3705,9 @@ public class MainActivity extends Activity {
         if (!catatan.isEmpty()) teks.append("Catatan   : ").append(catatan).append("\n");
         teks.append(garisTipis).append("\n");
         teks.append("ITEM / JASA\n");
-        teks.append(garisTipis).append("\n");
-        teks.append(String.format(Locale.getDefault(), "%-4s %-18s %7s %8s", "Qty", "Item", "Harga", "Subtotal")).append("\n");
-        teks.append(garisTipis).append("\n");
+        teks.append(garisTipis50()).append("\n");
+        teks.append(formatHeaderItemNota()).append("\n");
+        teks.append(garisTipis50()).append("\n");
 
         List<Map<String, Object>> items = (List<Map<String, Object>>) doc.get("items");
         int nomorItem = 1;
@@ -3669,11 +3762,11 @@ public class MainActivity extends Activity {
                                 PRINT_SERVICE
                         );
 
-        PrintAttributes.MediaSize ukuran80mm =
+        PrintAttributes.MediaSize ukuran50mm =
                 new PrintAttributes.MediaSize(
-                        "RR_MOTOR_80MM",
-                        "RR MOTOR 80MM",
-                        3150,
+                        "RR_MOTOR_50MM",
+                        "RR MOTOR 50MM",
+                        1969,
                         11811
                 );
 
@@ -4669,6 +4762,7 @@ public class MainActivity extends Activity {
         namaInput.setText("");
         waInput.setText("");
         motorInput.setText("");
+        nopolInput.setText("");
         catatanInput.setText("");
         dpInput.setText("");
 
@@ -4987,7 +5081,7 @@ public class MainActivity extends Activity {
         private final Context context;
         private final String teks;
 
-        private static final int PAGE_WIDTH = 226;
+        private static final int PAGE_WIDTH = 142;
         private static final int PAGE_HEIGHT = 850;
 
         private static final int LEFT_MARGIN = 3;
@@ -5017,7 +5111,7 @@ public class MainActivity extends Activity {
             android.graphics.Paint paint =
                     new android.graphics.Paint();
 
-            paint.setTextSize(7);
+            paint.setTextSize(6);
 
             paint.setTypeface(
                     Typeface.MONOSPACE
@@ -5227,7 +5321,7 @@ public class MainActivity extends Activity {
                     android.graphics.Paint paint =
                             new android.graphics.Paint();
 
-                    paint.setTextSize(7);
+                    paint.setTextSize(6);
 
                     paint.setTypeface(
                             Typeface.MONOSPACE
